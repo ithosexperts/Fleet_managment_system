@@ -49,7 +49,8 @@ export interface QueryExecutor {
 }
 
 function sqlServerBatch(text: string): string {
-  const normalized = text
+  const tablePrefix = process.env.DB_TABLE_PREFIX || (process.env.DB_NAME === 'test_operation' ? 'FL_' : '');
+  let normalized = text
     .replace(/\bTIMESTAMPTZ\b/g, 'datetime2')
     .replace(/\bDOUBLE PRECISION\b/g, 'float')
     .replace(/\bNOW\(\)/g, 'SYSUTCDATETIME()')
@@ -61,6 +62,33 @@ function sqlServerBatch(text: string): string {
     .replace(/\bTEXT\s+NOT NULL\b/gi, 'nvarchar(255) NOT NULL')
     .replace(/\bTEXT\s+CHECK\b/gi, 'nvarchar(255) CHECK')
     .replace(/\bTEXT\b/gi, 'nvarchar(max)');
+
+  if (tablePrefix) {
+    const tableMap: Record<string, string> = {
+      'users': `${tablePrefix}Users`,
+      'vehicles': `${tablePrefix}Vehicles`,
+      'drivers': `${tablePrefix}Drivers`,
+      'destinations': `${tablePrefix}Destinations`,
+      'trips': `${tablePrefix}Trips`,
+      'trip_stops': `${tablePrefix}Trip_Stops`,
+      'activities': `${tablePrefix}Activities`,
+      'delays': `${tablePrefix}Delays`,
+      'photos': `${tablePrefix}Photos`,
+      'trip_events': `${tablePrefix}Trip_Events`,
+      'audit_logs': `${tablePrefix}Audit_Logs`,
+      'vehicle_documents': `${tablePrefix}Vehicle_Documents`,
+      'driver_documents': `${tablePrefix}Driver_Documents`,
+      'maintenance_records': `${tablePrefix}Maintenance_Records`,
+      'fuel_transactions': `${tablePrefix}Fuel_Transactions`,
+      'vehicle_challans': `${tablePrefix}Vehicle_Challans`,
+      'operational_exceptions': `${tablePrefix}Operational_Exceptions`,
+      '_schema_migrations': `${tablePrefix}Schema_Migrations`
+    };
+
+    for (const [canonical, target] of Object.entries(tableMap)) {
+      normalized = normalized.replace(new RegExp(`\\b${canonical}\\b`, 'gi'), target);
+    }
+  }
 
   let translated = translateSqlServerLimits(normalized);
   return translated.split(';').map((rawStatement) => {
