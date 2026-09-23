@@ -34,7 +34,7 @@ class AppDatabase private constructor(context: Context) {
     fun offlineDao(): OfflineDao = daoInstance
 
     private val daoInstance = object : OfflineDao {
-        override suspend fun insertEvent(event: OfflineEventEntity) = withContext(Dispatchers.IO) {
+        override suspend fun insertEvent(event: OfflineEventEntity): Unit = withContext(Dispatchers.IO) {
             try {
                 val db = dbHelper.writableDatabase
                 val cv = ContentValues().apply {
@@ -70,7 +70,7 @@ class AppDatabase private constructor(context: Context) {
 
         override fun getPendingEventCountFlow(): Flow<Int> = countFlow.asStateFlow()
 
-        override suspend fun deleteEvent(id: String) = withContext(Dispatchers.IO) {
+        override suspend fun deleteEvent(id: String): Unit = withContext(Dispatchers.IO) {
             try {
                 val db = dbHelper.writableDatabase
                 db.delete("offline_events", "id = ?", arrayOf(id))
@@ -78,7 +78,7 @@ class AppDatabase private constructor(context: Context) {
             } catch (e: Throwable) {}
         }
 
-        override suspend fun updateEvent(event: OfflineEventEntity) = withContext(Dispatchers.IO) {
+        override suspend fun updateEvent(event: OfflineEventEntity): Unit = withContext(Dispatchers.IO) {
             try {
                 val db = dbHelper.writableDatabase
                 val cv = ContentValues().apply {
@@ -91,7 +91,7 @@ class AppDatabase private constructor(context: Context) {
             } catch (e: Throwable) {}
         }
 
-        override suspend fun insertPhoto(photo: OfflinePhotoEntity) = withContext(Dispatchers.IO) {
+        override suspend fun insertPhoto(photo: OfflinePhotoEntity): Unit = withContext(Dispatchers.IO) {
             try {
                 val db = dbHelper.writableDatabase
                 val cv = ContentValues().apply {
@@ -109,6 +109,7 @@ class AppDatabase private constructor(context: Context) {
                 }
                 db.insertWithOnConflict("offline_photos", null, cv, SQLiteDatabase.CONFLICT_REPLACE)
             } catch (e: Throwable) {}
+            Unit
         }
 
         override suspend fun getPendingPhotos(): List<OfflinePhotoEntity> = withContext(Dispatchers.IO) {
@@ -124,14 +125,15 @@ class AppDatabase private constructor(context: Context) {
             list
         }
 
-        override suspend fun deletePhoto(id: String) = withContext(Dispatchers.IO) {
+        override suspend fun deletePhoto(id: String): Unit = withContext(Dispatchers.IO) {
             try {
                 val db = dbHelper.writableDatabase
                 db.delete("offline_photos", "id = ?", arrayOf(id))
             } catch (e: Throwable) {}
+            Unit
         }
 
-        override suspend fun updatePhoto(photo: OfflinePhotoEntity) = withContext(Dispatchers.IO) {
+        override suspend fun updatePhoto(photo: OfflinePhotoEntity): Unit = withContext(Dispatchers.IO) {
             try {
                 val db = dbHelper.writableDatabase
                 val cv = ContentValues().apply {
@@ -140,6 +142,7 @@ class AppDatabase private constructor(context: Context) {
                 }
                 db.update("offline_photos", cv, "id = ?", arrayOf(photo.id))
             } catch (e: Throwable) {}
+            Unit
         }
     }
 
