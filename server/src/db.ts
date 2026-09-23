@@ -10,10 +10,14 @@ const poolMax = Number.parseInt(process.env.DB_POOL_MAX || '10', 10);
 if (!Number.isInteger(poolMax) || poolMax < 1) throw new Error('DB_POOL_MAX must be a positive integer.');
 
 const postgresUrl = process.env.DATABASE_URL;
+const isRenderPostgres = Boolean(postgresUrl && (postgresUrl.includes('dpg-') || postgresUrl.includes('render.com')));
+const useSsl = process.env.DB_SSL === 'true' || isRenderPostgres;
+const rejectUnauthorized = process.env.DB_SSL_REJECT_UNAUTHORIZED === 'true';
+
 const postgresPool = driver === 'postgres' && postgresUrl ? new pg.Pool({
   connectionString: postgresUrl,
   max: poolMax,
-  ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false' } : undefined
+  ssl: useSsl ? { rejectUnauthorized } : undefined
 }) : null;
 
 const sqlServerConfig: sql.config | null = driver === 'sqlserver' ? {
