@@ -143,8 +143,8 @@ app.get('/api/app-version', (_req, res) => {
   res.json({
     version: '1.1.0',
     versionCode: 2,
-    downloadUrl: 'https://github.com/Nixxzzzzz/truck_tracker/releases/download/v1.1.0/TruckTracker-Driver-v1.1.0-debug.apk',
-    latestReleaseUrl: 'https://github.com/Nixxzzzzz/truck_tracker/releases/latest',
+    downloadUrl: 'https://github.com/ithosexperts/Fleet_managment_system/releases/download/v1.1.0/TruckTracker-Driver-v1.1.0-debug.apk',
+    latestReleaseUrl: 'https://github.com/ithosexperts/Fleet_managment_system/releases/latest',
     mandatoryUpdate: false
   });
 });

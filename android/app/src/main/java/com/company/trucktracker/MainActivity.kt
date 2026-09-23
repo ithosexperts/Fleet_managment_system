@@ -61,18 +61,20 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun requestHardwarePermissions() {
-        val fineLocation = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
-        val camera = ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+        try {
+            val fineLocation = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+            val camera = ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
 
-        if (fineLocation != PackageManager.PERMISSION_GRANTED || camera != PackageManager.PERMISSION_GRANTED) {
-            permissionLauncher.launch(
-                arrayOf(
-                    Manifest.permission.ACCESS_FINE_LOCATION,
-                    Manifest.permission.ACCESS_COARSE_LOCATION,
-                    Manifest.permission.CAMERA
+            if (fineLocation != PackageManager.PERMISSION_GRANTED || camera != PackageManager.PERMISSION_GRANTED) {
+                permissionLauncher.launch(
+                    arrayOf(
+                        Manifest.permission.ACCESS_FINE_LOCATION,
+                        Manifest.permission.ACCESS_COARSE_LOCATION,
+                        Manifest.permission.CAMERA
+                    )
                 )
-            )
-        }
+            }
+        } catch (_: Throwable) {}
     }
 }
 

@@ -316,7 +316,7 @@ export const LoginView: React.FC<Props> = ({ onLoginSuccess, theme = 'dark', onT
           {/* Android Mobile App Direct APK Link */}
           <div style={{ textAlign: 'center', marginTop: '16px' }}>
             <a
-              href="https://github.com/Nixxzzzzz/truck_tracker/releases/download/v1.1.0/TruckTracker-Driver-v1.1.0-debug.apk"
+              href="https://github.com/ithosexperts/Fleet_managment_system/releases/download/v1.1.0/TruckTracker-Driver-v1.1.0-debug.apk"
               target="_blank"
               rel="noopener noreferrer"
               className="btn btn-subtle"

@@ -1,11 +1,7 @@
 package com.company.trucktracker.data.local
 
-import androidx.room.Entity
-import androidx.room.PrimaryKey
-
-@Entity(tableName = "offline_events")
 data class OfflineEventEntity(
-    @PrimaryKey val id: String, // UUID
+    val id: String, // UUID
     val idempotencyKey: String,
     val eventType: String,
     val entityId: String, // trip_id or stop_id
@@ -18,9 +14,8 @@ data class OfflineEventEntity(
     val errorMessage: String? = null
 )
 
-@Entity(tableName = "offline_photos")
 data class OfflinePhotoEntity(
-    @PrimaryKey val id: String, // UUID
+    val id: String, // UUID
     val tripId: String,
     val stopId: String?,
     val localFilePath: String,

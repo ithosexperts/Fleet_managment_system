@@ -21,18 +21,22 @@ class NetworkMonitor(context: Context) {
             .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
             .build()
 
-        connectivityManager.registerNetworkCallback(
-            networkRequest,
-            object : ConnectivityManager.NetworkCallback() {
-                override fun onAvailable(network: Network) {
-                    _isConnected.value = true
-                }
+        try {
+            connectivityManager.registerNetworkCallback(
+                networkRequest,
+                object : ConnectivityManager.NetworkCallback() {
+                    override fun onAvailable(network: Network) {
+                        _isConnected.value = true
+                    }
 
-                override fun onLost(network: Network) {
-                    _isConnected.value = false
+                    override fun onLost(network: Network) {
+                        _isConnected.value = false
+                    }
                 }
-            }
-        )
+            )
+        } catch (_: Throwable) {
+            // Graceful fallback if device restricts network callback
+        }
     }
 
     private fun checkCurrentConnectivity(): Boolean {

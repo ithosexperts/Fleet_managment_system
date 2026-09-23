@@ -20,7 +20,7 @@ class PreferenceManager(context: Context) {
                 EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
                 EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
             )
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             // Fallback for emulators/older devices without hardware Keystore
             context.getSharedPreferences("tt_fallback_prefs", Context.MODE_PRIVATE)
         }

@@ -78,4 +78,5 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cp android/app/build/outputs/apk/debug/TruckTracker-Driver-v1.1.0-debug.apk android/app/build/outputs/apk/debug/TruckTracker-v1.1.0.apk || true
-          gh release upload v1.1.0 android/app/build/outputs/apk/debug/TruckTracker-Driver-v1.1.0-debug.apk android/app/build/outputs/apk/debug/TruckTracker-v1.1.0.apk --clobber || true
+          gh release view v1.1.0 || gh release create v1.1.0 --title "TruckTracker v1.1.0 Release" --notes "Production Logistics & Driver APK"
+          gh release upload v1.1.0 android/app/build/outputs/apk/debug/TruckTracker-Driver-v1.1.0-debug.apk android/app/build/outputs/apk/debug/TruckTracker-v1.1.0.apk --clobber
