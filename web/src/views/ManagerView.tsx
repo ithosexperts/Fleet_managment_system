@@ -910,8 +910,9 @@ export const ManagerView: React.FC<Props> = ({
   // Destinations Filtered & Sorted
   const sortedDestinations = useMemo(() => {
     const list = destinations.filter((dest) => {
+      const code = typeof dest.area_code === 'string' && dest.area_code !== '{}' && dest.area_code !== '[object Object]' ? dest.area_code : '';
       return (
-        (dest.area_code || '').toLowerCase().includes(destinationSearch.toLowerCase()) ||
+        code.toLowerCase().includes(destinationSearch.toLowerCase()) ||
         dest.name.toLowerCase().includes(destinationSearch.toLowerCase()) ||
         dest.address.toLowerCase().includes(destinationSearch.toLowerCase()) ||
         (dest.contact_name || '').toLowerCase().includes(destinationSearch.toLowerCase())
@@ -920,7 +921,11 @@ export const ManagerView: React.FC<Props> = ({
 
     switch (destinationSort) {
       case 'code_asc':
-        return list.sort((a, b) => (a.area_code || a.name).localeCompare(b.area_code || b.name));
+        return list.sort((a, b) => {
+          const codeA = typeof a.area_code === 'string' && a.area_code !== '{}' ? a.area_code : a.name;
+          const codeB = typeof b.area_code === 'string' && b.area_code !== '{}' ? b.area_code : b.name;
+          return codeA.localeCompare(codeB);
+        });
       case 'name_asc':
         return list.sort((a, b) => a.name.localeCompare(b.name));
       case 'name_desc':
@@ -2654,7 +2659,12 @@ export const ManagerView: React.FC<Props> = ({
                       fontVariantNumeric: 'tabular-nums'
                     }}
                   >
-                    {dest.area_code || '—'}
+                    {typeof dest.area_code === 'string' &&
+                    dest.area_code !== '{}' &&
+                    dest.area_code !== '[object Object]' &&
+                    dest.area_code.trim() !== ''
+                      ? dest.area_code
+                      : '—'}
                   </span>
                 )
               },

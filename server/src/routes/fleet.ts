@@ -476,7 +476,22 @@ router.get('/destinations', requireAuth, async (req, res) => {
     FROM destinations d
     WHERE d.is_active = 1
     ORDER BY d.name ASC
-  `)).rows;
+  `)).rows as any[];
+
+  // Auto-heal any destination with missing or corrupted area_code (e.g. '{}' or '[object Object]')
+  for (const d of destinations) {
+    const ac = d.area_code;
+    if (!ac || ac === '{}' || ac === '[object Object]' || typeof ac === 'object') {
+      try {
+        const generated = await generateAreaCode(d.name, d.address);
+        d.area_code = generated;
+        await query(`UPDATE destinations SET area_code = $1 WHERE id = $2`, [generated, d.id]);
+      } catch (e) {
+        console.warn('[AreaCode Auto-Heal Failed]', e);
+      }
+    }
+  }
+
   return res.json({ destinations });
 });
 
@@ -489,13 +504,14 @@ router.post('/destinations', requireAuth, requireRole('MANAGER'), async (req: Au
 
   const id = uuidv4();
   try {
-    const areaCode = generateAreaCode(name, address);
+    const areaCode = await generateAreaCode(name, address);
     await query(`
       INSERT INTO destinations (id, name, address, area_code, latitude, longitude, contact_name, contact_number, geofence_radius_meters, notes, is_active)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 1)
     `, [id, name, address, areaCode, latitude, longitude, contact_name || null, contact_number || null, geofence_radius_meters, notes || null]);
 
-    return res.status(201).json({ message: 'Destination created', id, area_code: areaCode });
+    const newDest = (await query(`SELECT * FROM destinations WHERE id = $1`, [id])).rows[0];
+    return res.status(201).json({ message: 'Destination created', id, area_code: areaCode, destination: newDest });
   } catch (err: any) {
     return res.status(400).json({ error: err.message });
   }
@@ -525,7 +541,8 @@ router.put('/destinations/:id', requireAuth, requireRole('MANAGER'), async (req:
       id
     ]);
 
-    return res.json({ message: 'Destination updated' });
+    const updated = (await query(`SELECT * FROM destinations WHERE id = $1`, [id])).rows[0];
+    return res.json({ message: 'Destination updated', destination: updated });
   } catch (err: any) {
     return res.status(400).json({ error: err.message });
   }
