@@ -5,10 +5,24 @@ import { v4 as uuidv4 } from 'uuid';
 import { query } from '../db';
 import { PhotoType } from '../types';
 
-export const UPLOADS_DIR = process.env.UPLOADS_DIR || path.resolve(__dirname, '../../uploads/photos');
-if (!fs.existsSync(UPLOADS_DIR)) {
-  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+function resolveUploadsDir(): string {
+  const preferred = process.env.UPLOADS_DIR || path.resolve(__dirname, '../../uploads/photos');
+  try {
+    if (!fs.existsSync(preferred)) {
+      fs.mkdirSync(preferred, { recursive: true });
+    }
+    return preferred;
+  } catch (err) {
+    const fallback = path.resolve(__dirname, '../../uploads/photos');
+    console.warn(`[Storage] Cannot use ${preferred} (${(err as Error).message}), falling back to ${fallback}`);
+    if (!fs.existsSync(fallback)) {
+      fs.mkdirSync(fallback, { recursive: true });
+    }
+    return fallback;
+  }
 }
+
+export const UPLOADS_DIR = resolveUploadsDir();
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => {
