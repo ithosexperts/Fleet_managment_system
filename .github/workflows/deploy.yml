@@ -83,6 +83,14 @@ jobs:
           path: android/gradle_build.log
           if-no-files-found: ignore
 
+      - name: Publish Diagnostic Log on Failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view build-log || gh release create build-log --title "Build Diagnostic Log" --notes "Automated CI failure diagnosis"
+          gh release upload build-log android/gradle_build.log --clobber
+
       - name: Upload Android APK Artifact
         uses: actions/upload-artifact@v4
         with:
