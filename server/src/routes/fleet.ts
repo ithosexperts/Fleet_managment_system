@@ -11,7 +11,7 @@ const router = Router();
 // VEHICLES
 // ==========================================
 
-function normalizeDocTypeKey(typeStr?: string): string {
+function toFrontendDocType(typeStr?: string): string {
   if (!typeStr) return 'OTHER';
   const upper = String(typeStr).toUpperCase();
   if (upper.includes('REGISTRATION') || upper === 'RC') return 'RC';
@@ -19,7 +19,42 @@ function normalizeDocTypeKey(typeStr?: string): string {
   if (upper.includes('FITNESS')) return 'FITNESS';
   if (upper.includes('POLLUTION') || upper === 'PUC') return 'PUC';
   if (upper.includes('PERMIT')) return 'PERMIT';
-  return upper;
+  return 'OTHER';
+}
+
+function toDbDocumentType(typeStr?: string): string {
+  if (!typeStr) return 'OTHER';
+  const upper = String(typeStr).toUpperCase();
+  if (upper.includes('REGISTRATION') || upper === 'RC') return 'REGISTRATION_CERTIFICATE';
+  if (upper.includes('INSURANCE')) return 'INSURANCE_POLICY';
+  if (upper.includes('FITNESS')) return 'FITNESS_CERTIFICATE';
+  if (upper.includes('POLLUTION') || upper === 'PUC') return 'POLLUTION_UNDER_CONTROL';
+  if (upper.includes('PERMIT')) return 'NATIONAL_PERMIT';
+  if (['REGISTRATION_CERTIFICATE', 'INSURANCE_POLICY', 'FITNESS_CERTIFICATE', 'POLLUTION_UNDER_CONTROL', 'NATIONAL_PERMIT', 'OTHER'].includes(upper)) {
+    return upper;
+  }
+  return 'OTHER';
+}
+
+function normalizeDocTypeKey(typeStr?: string): string {
+  return toFrontendDocType(typeStr);
+}
+
+async function resolveDriverUserId(driverOrUserId?: string | null): Promise<string | null> {
+  if (!driverOrUserId) return null;
+  // 1. Is it already a user ID?
+  const userRes = await query(`SELECT id FROM users WHERE id = $1`, [driverOrUserId]);
+  if (userRes.rows.length > 0) return (userRes.rows[0] as any).id;
+
+  // 2. Is it a driver table ID?
+  const driverRes = await query(`SELECT user_id FROM drivers WHERE id = $1`, [driverOrUserId]);
+  if (driverRes.rows.length > 0) return (driverRes.rows[0] as any).user_id;
+
+  // 3. Is it an employee ID?
+  const empRes = await query(`SELECT user_id FROM drivers WHERE UPPER(employee_id) = UPPER($1)`, [driverOrUserId]);
+  if (empRes.rows.length > 0) return (empRes.rows[0] as any).user_id;
+
+  return null;
 }
 
 router.get('/vehicles', requireAuth, async (req, res) => {
@@ -108,6 +143,8 @@ router.post('/vehicles', requireAuth, requireRole('MANAGER'), async (req: Authen
 
   const id = uuidv4();
   try {
+    const resolvedDriverUserId = await resolveDriverUserId(assigned_driver_id);
+
     await withTransaction(async (client) => {
       await client.query(`
       INSERT INTO vehicles (id, vehicle_number, vehicle_type, model, assigned_driver_id, status, notes, fleet_unit_id, chassis_number, telematics_imei, photo_url)
@@ -117,7 +154,7 @@ router.post('/vehicles', requireAuth, requireRole('MANAGER'), async (req: Authen
       vehicle_number,
       vehicle_type,
       model,
-      assigned_driver_id || null,
+      resolvedDriverUserId,
       status,
       notes || null,
       fleet_unit_id || null,
@@ -125,6 +162,10 @@ router.post('/vehicles', requireAuth, requireRole('MANAGER'), async (req: Authen
       telematics_imei || null,
       photo_url || null
       ]);
+
+      if (resolvedDriverUserId) {
+        await client.query(`UPDATE drivers SET assigned_vehicle_id = $1 WHERE user_id = $2`, [id, resolvedDriverUserId]);
+      }
 
       if (Array.isArray(documents)) {
         const docInsert = `
@@ -134,26 +175,26 @@ router.post('/vehicles', requireAuth, requireRole('MANAGER'), async (req: Authen
         for (const d of documents) {
           if (d.document_number) {
             await client.query(docInsert, [
-            uuidv4(),
-            id,
-            d.type || 'RC',
-            d.title || `${d.type || 'RC'} Certificate`,
-            d.document_number,
-            d.issue_date || null,
-            d.expiry_date || '2030-01-01',
-            d.status || 'VALID',
-            d.file_url || null,
-            d.file_name || null,
-            d.file_size || null
+              uuidv4(),
+              id,
+              toDbDocumentType(d.type || d.document_type),
+              d.title || `${d.type || 'RC'} Certificate`,
+              d.document_number,
+              d.issue_date || null,
+              d.expiry_date || '2030-01-01',
+              d.status || 'VALID',
+              d.file_url || null,
+              d.file_name || null,
+              d.file_size || null
             ]);
           }
         }
       }
 
       await logAudit({
-      action: 'VEHICLE_CREATED',
-      newValue: `Vehicle ${vehicle_number} (${model}) added`,
-      changedBy: req.user!.id
+        action: 'VEHICLE_CREATED',
+        newValue: `Vehicle ${vehicle_number} (${model}) added`,
+        changedBy: req.user!.id
       });
     });
 
@@ -163,7 +204,7 @@ router.post('/vehicles', requireAuth, requireRole('MANAGER'), async (req: Authen
     if (err.code === '23505') {
       return res.status(400).json({ error: 'A vehicle with this registration number already exists.' });
     }
-    return res.status(400).json({ error: 'Failed to create vehicle. Please verify input details.' });
+    return res.status(400).json({ error: `Failed to create vehicle: ${err.message || 'Please verify input details.'}` });
   }
 });
 
@@ -183,24 +224,27 @@ router.put('/vehicles/:id', requireAuth, requireRole('MANAGER'), async (req: Aut
   } = req.body;
 
   try {
+    const resolvedDriverUserId = assigned_driver_id !== undefined ? await resolveDriverUserId(assigned_driver_id) : undefined;
+
     await query(`
       UPDATE vehicles
       SET vehicle_number = COALESCE(UPPER($1), vehicle_number),
           vehicle_type = COALESCE($2, vehicle_type),
           model = COALESCE($3, model),
-          assigned_driver_id = $4,
-          status = COALESCE($5, status),
-          notes = COALESCE($6, notes),
-          fleet_unit_id = COALESCE($7, fleet_unit_id),
-          chassis_number = COALESCE($8, chassis_number),
-          telematics_imei = COALESCE($9, telematics_imei),
-          photo_url = COALESCE($10, photo_url)
-      WHERE id = $11
+          assigned_driver_id = CASE WHEN $4 IS NOT NULL THEN $5 ELSE assigned_driver_id END,
+          status = COALESCE($6, status),
+          notes = COALESCE($7, notes),
+          fleet_unit_id = COALESCE($8, fleet_unit_id),
+          chassis_number = COALESCE($9, chassis_number),
+          telematics_imei = COALESCE($10, telematics_imei),
+          photo_url = COALESCE($11, photo_url)
+      WHERE id = $12
     `, [
       vehicle_number || null,
       vehicle_type || null,
       model || null,
-      assigned_driver_id,
+      assigned_driver_id !== undefined ? 'SET' : null,
+      resolvedDriverUserId,
       status || null,
       notes || null,
       fleet_unit_id || null,
@@ -209,6 +253,10 @@ router.put('/vehicles/:id', requireAuth, requireRole('MANAGER'), async (req: Aut
       photo_url || null,
       id
     ]);
+
+    if (resolvedDriverUserId) {
+      await query(`UPDATE drivers SET assigned_vehicle_id = $1 WHERE user_id = $2`, [id, resolvedDriverUserId]);
+    }
 
     return res.json({ message: 'Vehicle updated' });
   } catch (err: any) {

@@ -432,6 +432,21 @@ const MIGRATIONS: Migration[] = [
         CREATE INDEX IF NOT EXISTS idx_vehicle_challans_vehicle ON vehicle_challans(vehicle_id, status);
       `);
     }
+  },
+  {
+    version: 8,
+    name: '008_ensure_vehicle_telematics_and_equipment_columns',
+    up: async (client) => {
+      await client.query(`
+        ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS fleet_unit_id TEXT;
+        ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS chassis_number TEXT;
+        ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS telematics_imei TEXT;
+        ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS photo_url TEXT;
+        ALTER TABLE vehicle_documents ADD COLUMN IF NOT EXISTS file_url TEXT;
+        ALTER TABLE vehicle_documents ADD COLUMN IF NOT EXISTS file_name TEXT;
+        ALTER TABLE vehicle_documents ADD COLUMN IF NOT EXISTS file_size INTEGER;
+      `);
+    }
   }
 ];
 

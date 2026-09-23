@@ -20,7 +20,8 @@ export const VehicleModal: React.FC<Props> = ({ drivers, initialVehicle, onSucce
   const [vehicleNumber, setVehicleNumber] = useState(initialVehicle?.vehicle_number || '');
   const [model, setModel] = useState(initialVehicle?.model || '');
   const [vehicleType, setVehicleType] = useState(initialVehicle?.vehicle_type || 'Medium Freight');
-  const [assignedDriverId, setAssignedDriverId] = useState(initialVehicle?.assigned_driver_id || '');
+  const initialDriver = drivers.find((d) => d.user_id === initialVehicle?.assigned_driver_id || d.id === initialVehicle?.assigned_driver_id);
+  const [assignedDriverId, setAssignedDriverId] = useState(initialDriver?.user_id || initialDriver?.id || initialVehicle?.assigned_driver_id || '');
   const [status, setStatus] = useState<any>(initialVehicle?.status || 'AVAILABLE');
   const [notes, setNotes] = useState(initialVehicle?.notes || '');
   const [photoUrl, setPhotoUrl] = useState(initialVehicle?.photo_url || '');
@@ -116,7 +117,7 @@ export const VehicleModal: React.FC<Props> = ({ drivers, initialVehicle, onSucce
       vehicle_number: vehicleNumber.trim().toUpperCase(),
       model: model.trim(),
       vehicle_type: vehicleType,
-      assigned_driver_id: assignedDriverId || null,
+      assigned_driver_id: selectedDriver?.user_id || selectedDriver?.id || assignedDriverId || null,
       assigned_driver_name: selectedDriver?.name || undefined,
       status: status,
       notes: notes.trim() || undefined,
@@ -375,7 +376,7 @@ export const VehicleModal: React.FC<Props> = ({ drivers, initialVehicle, onSucce
                   placeholder="Unassigned (Floating Fleet)"
                   options={[
                     { value: '', label: 'Unassigned (Floating Fleet)' },
-                    ...drivers.map((d) => ({ value: d.id, label: `${d.name} (${d.employee_id})` }))
+                    ...drivers.map((d) => ({ value: d.user_id || d.id, label: `${d.name} (${d.employee_id})` }))
                   ]}
                 />
               </div>
