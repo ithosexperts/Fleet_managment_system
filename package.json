@@ -21,6 +21,7 @@
     "test": "npm run test:integrity --workspace=server",
     "test:qa": "node scripts/verify-all-elements.cjs",
     "test:audit": "node scripts/audit-live-render.cjs",
+    "deploy:render": "node scripts/deploy-render.cjs",
     "start": "npm run start --workspace=server"
   },
   "engines": {

@@ -192,6 +192,11 @@ INITIAL_ADMIN_PASSWORD=SetSecureCompanyPassword2026!
 # Persistent Storage Paths (pointing to mounted disk)
 UPLOADS_DIR=/data/uploads/photos
 
+# HoseXperts Company API Gateway (apiv2.php)
+HOSEXPERTS_API_URL=https://api.hosexperts.com:81235/apiv2.php
+HOSEXPERTS_API_REJECT_UNAUTHORIZED=false
+HOSEXPERTS_SYNC_ENABLED=true
+
 # SAP ONE Portal ERP Integration
 SAP_ONE_PORTAL_URL=https://oneportal.company.internal/api/v1
 SAP_ONE_COMPANY_DB=HOSEXPERTS_LIVE

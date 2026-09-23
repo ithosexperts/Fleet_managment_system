@@ -37,5 +37,11 @@ services:
         value: 10000
       - key: JWT_SECRET
         generateValue: true
+      - key: HOSEXPERTS_API_URL
+        value: https://api.hosexperts.com:81235/apiv2.php
+      - key: HOSEXPERTS_API_REJECT_UNAUTHORIZED
+        value: "false"
+      - key: HOSEXPERTS_SYNC_ENABLED
+        value: "true"
 
 

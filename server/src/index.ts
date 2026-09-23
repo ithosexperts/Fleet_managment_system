@@ -14,6 +14,7 @@ import tripsRoutes from './routes/trips';
 import fleetRoutes from './routes/fleet';
 import reportsRoutes from './routes/reports';
 import photosRoutes from './routes/photos';
+import hosexpertsRoutes from './routes/hosexperts';
 import { UPLOADS_DIR } from './services/photoStorage';
 import { requireAuth, requireRole } from './middleware/auth';
 import { createBackup } from './backup';
@@ -125,6 +126,7 @@ app.use('/api/trips', tripsRoutes);
 app.use('/api/fleet', fleetRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/photos', photosRoutes);
+app.use('/api/hosexperts', hosexpertsRoutes);
 
 // Health check
 app.get('/api/health', (_req, res) => {
