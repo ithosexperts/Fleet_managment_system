@@ -21,6 +21,13 @@ export interface PlaceSuggestion {
 const searchCache = new Map<string, PlaceSuggestion[]>();
 let activeAbortController: AbortController | null = null;
 
+export function abortPlaceSearch() {
+  if (activeAbortController) {
+    activeAbortController.abort();
+    activeAbortController = null;
+  }
+}
+
 /**
  * Searches places with debounce, query caching, and optional proximity bias.
  */
@@ -105,13 +112,14 @@ export async function searchPlaceSuggestions(
       }
     }
   } catch (err: any) {
-    if (err.name !== 'AbortError') {
-      console.warn('[Geocoding] Photon lookup error, trying Nominatim online:', err.message);
+    if (err.name === 'AbortError') {
+      return matchingSaved;
     }
+    console.warn('[Geocoding] Photon lookup error, trying Nominatim online:', err.message);
   }
 
   // If Photon returned empty or failed, fallback to live Nominatim OpenStreetMap API
-  if (geocodedResults.length === 0) {
+  if (geocodedResults.length === 0 && !activeAbortController?.signal?.aborted) {
     try {
       const nomUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(trimmed)}&countrycodes=in&limit=6&addressdetails=1`;
       const nomRes = await fetch(nomUrl, {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, MapPin, Building2, Loader2, X } from 'lucide-react';
-import { searchPlaceSuggestions, PlaceSuggestion } from '../../services/geocoding';
+import { searchPlaceSuggestions, abortPlaceSearch, PlaceSuggestion } from '../../services/geocoding';
 
 interface Props {
   placeholder?: string;
@@ -31,34 +31,76 @@ export const LocationSearchInput: React.FC<Props> = ({
   const wrapperRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const searchTimerRef = useRef<any>(null);
+  const requestIdRef = useRef(0);
+  const isTypingRef = useRef(false);
+
+  // Sync external initialValue without triggering any search or opening the dropdown
   useEffect(() => {
-    setQuery(initialValue);
+    setQuery(initialValue || '');
+    setIsOpen(false);
+    setSuggestions([]);
+    setLoading(false);
+    requestIdRef.current++;
+    if (searchTimerRef.current) {
+      clearTimeout(searchTimerRef.current);
+    }
+    abortPlaceSearch();
+    isTypingRef.current = false;
   }, [initialValue]);
 
-  // Debounced search
+  // Clean up on unmount
   useEffect(() => {
-    if (!query || query.trim().length < 2) {
+    return () => {
+      if (searchTimerRef.current) {
+        clearTimeout(searchTimerRef.current);
+      }
+      abortPlaceSearch();
+    };
+  }, []);
+
+  // Handle active user typing
+  const handleInputChange = (newVal: string) => {
+    setQuery(newVal);
+    isTypingRef.current = true;
+
+    if (searchTimerRef.current) {
+      clearTimeout(searchTimerRef.current);
+    }
+
+    const trimmed = newVal.trim();
+    if (trimmed.length < 2) {
+      requestIdRef.current++;
+      abortPlaceSearch();
       setSuggestions([]);
       setIsOpen(false);
+      setLoading(false);
       return;
     }
 
-    const timer = setTimeout(async () => {
+    const currentReqId = ++requestIdRef.current;
+
+    searchTimerRef.current = setTimeout(async () => {
       setLoading(true);
       try {
-        const results = await searchPlaceSuggestions(query, proximity, savedDestinations);
-        setSuggestions(results);
-        setIsOpen(results.length > 0);
-        setSelectedIndex(-1);
-      } catch (err) {
-        console.error('Place search error:', err);
+        const results = await searchPlaceSuggestions(trimmed, proximity, savedDestinations);
+        // Only display if this request is still the latest and user is still actively typing
+        if (currentReqId === requestIdRef.current && isTypingRef.current) {
+          setSuggestions(results);
+          setIsOpen(results.length > 0);
+          setSelectedIndex(-1);
+        }
+      } catch (err: any) {
+        if (err.name !== 'AbortError') {
+          console.error('Place search error:', err);
+        }
       } finally {
-        setLoading(false);
+        if (currentReqId === requestIdRef.current) {
+          setLoading(false);
+        }
       }
     }, 250);
-
-    return () => clearTimeout(timer);
-  }, [query, proximity, savedDestinations]);
+  };
 
   // Click outside listener to close dropdown
   useEffect(() => {
@@ -72,9 +114,41 @@ export const LocationSearchInput: React.FC<Props> = ({
   }, []);
 
   const handleSelect = (place: PlaceSuggestion) => {
-    setQuery(place.name);
+    // 1. Immediately invalidate any pending or in-flight searches
+    requestIdRef.current++;
+    if (searchTimerRef.current) {
+      clearTimeout(searchTimerRef.current);
+    }
+    abortPlaceSearch();
+
+    // 2. Mark typing as inactive and close dropdown
+    isTypingRef.current = false;
     setIsOpen(false);
+    setSuggestions([]);
+    setLoading(false);
+    setSelectedIndex(-1);
+
+    // 3. Set input text to selected place name
+    setQuery(place.name);
+
+    // 4. Trigger parent callback
     onSelect(place);
+  };
+
+  const handleClear = () => {
+    requestIdRef.current++;
+    if (searchTimerRef.current) {
+      clearTimeout(searchTimerRef.current);
+    }
+    abortPlaceSearch();
+
+    isTypingRef.current = false;
+    setQuery('');
+    setSuggestions([]);
+    setIsOpen(false);
+    setLoading(false);
+    setSelectedIndex(-1);
+    inputRef.current?.focus();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -116,9 +190,11 @@ export const LocationSearchInput: React.FC<Props> = ({
           className={`form-input ${className}`}
           placeholder={placeholder}
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => handleInputChange(e.target.value)}
           onFocus={() => {
-            if (suggestions.length > 0) setIsOpen(true);
+            if (suggestions.length > 0 && isTypingRef.current) {
+              setIsOpen(true);
+            }
           }}
           onKeyDown={handleKeyDown}
           autoFocus={autoFocus}
@@ -149,12 +225,7 @@ export const LocationSearchInput: React.FC<Props> = ({
         ) : query ? (
           <button
             type="button"
-            onClick={() => {
-              setQuery('');
-              setSuggestions([]);
-              setIsOpen(false);
-              inputRef.current?.focus();
-            }}
+            onClick={handleClear}
             style={{
               position: 'absolute',
               right: '8px',
@@ -166,6 +237,7 @@ export const LocationSearchInput: React.FC<Props> = ({
               display: 'flex',
               alignItems: 'center'
             }}
+            title="Clear search"
           >
             <X size={14} />
           </button>
@@ -196,7 +268,10 @@ export const LocationSearchInput: React.FC<Props> = ({
             return (
               <div
                 key={place.id}
-                onClick={() => handleSelect(place)}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  handleSelect(place);
+                }}
                 onMouseEnter={() => setSelectedIndex(idx)}
                 style={{
                   padding: '9px 12px',
