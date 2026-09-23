@@ -28,7 +28,7 @@ class AppDatabase private constructor(context: Context) {
                 countFlow.value = cursor.getInt(0)
             }
             cursor.close()
-        } catch (_: Throwable) {}
+        } catch (e: Throwable) {}
     }
 
     fun offlineDao(): OfflineDao = daoInstance
@@ -52,7 +52,7 @@ class AppDatabase private constructor(context: Context) {
                 }
                 db.insertWithOnConflict("offline_events", null, cv, SQLiteDatabase.CONFLICT_REPLACE)
                 updatePendingCount()
-            } catch (_: Throwable) {}
+            } catch (e: Throwable) {}
         }
 
         override suspend fun getPendingEvents(): List<OfflineEventEntity> = withContext(Dispatchers.IO) {
@@ -64,7 +64,7 @@ class AppDatabase private constructor(context: Context) {
                     list.add(cursorToEvent(cursor))
                 }
                 cursor.close()
-            } catch (_: Throwable) {}
+            } catch (e: Throwable) {}
             list
         }
 
@@ -75,7 +75,7 @@ class AppDatabase private constructor(context: Context) {
                 val db = dbHelper.writableDatabase
                 db.delete("offline_events", "id = ?", arrayOf(id))
                 updatePendingCount()
-            } catch (_: Throwable) {}
+            } catch (e: Throwable) {}
         }
 
         override suspend fun updateEvent(event: OfflineEventEntity) = withContext(Dispatchers.IO) {
@@ -88,7 +88,7 @@ class AppDatabase private constructor(context: Context) {
                 }
                 db.update("offline_events", cv, "id = ?", arrayOf(event.id))
                 updatePendingCount()
-            } catch (_: Throwable) {}
+            } catch (e: Throwable) {}
         }
 
         override suspend fun insertPhoto(photo: OfflinePhotoEntity) = withContext(Dispatchers.IO) {
@@ -108,7 +108,7 @@ class AppDatabase private constructor(context: Context) {
                     put("syncStatus", photo.syncStatus)
                 }
                 db.insertWithOnConflict("offline_photos", null, cv, SQLiteDatabase.CONFLICT_REPLACE)
-            } catch (_: Throwable) {}
+            } catch (e: Throwable) {}
         }
 
         override suspend fun getPendingPhotos(): List<OfflinePhotoEntity> = withContext(Dispatchers.IO) {
@@ -120,7 +120,7 @@ class AppDatabase private constructor(context: Context) {
                     list.add(cursorToPhoto(cursor))
                 }
                 cursor.close()
-            } catch (_: Throwable) {}
+            } catch (e: Throwable) {}
             list
         }
 
@@ -128,7 +128,7 @@ class AppDatabase private constructor(context: Context) {
             try {
                 val db = dbHelper.writableDatabase
                 db.delete("offline_photos", "id = ?", arrayOf(id))
-            } catch (_: Throwable) {}
+            } catch (e: Throwable) {}
         }
 
         override suspend fun updatePhoto(photo: OfflinePhotoEntity) = withContext(Dispatchers.IO) {
@@ -139,7 +139,7 @@ class AppDatabase private constructor(context: Context) {
                     put("syncStatus", photo.syncStatus)
                 }
                 db.update("offline_photos", cv, "id = ?", arrayOf(photo.id))
-            } catch (_: Throwable) {}
+            } catch (e: Throwable) {}
         }
     }
 

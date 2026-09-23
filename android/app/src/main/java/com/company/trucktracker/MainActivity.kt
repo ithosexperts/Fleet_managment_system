@@ -74,7 +74,7 @@ class MainActivity : ComponentActivity() {
                     )
                 )
             }
-        } catch (_: Throwable) {}
+        } catch (e: Throwable) {}
     }
 }
 
@@ -117,7 +117,7 @@ fun MainAppHost(
                     updateInfo = info
                 }
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) {}
     }
 
     // Splash session check

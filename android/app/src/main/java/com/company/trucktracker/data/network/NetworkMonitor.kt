@@ -34,7 +34,7 @@ class NetworkMonitor(context: Context) {
                     }
                 }
             )
-        } catch (_: Throwable) {
+        } catch (e: Throwable) {
             // Graceful fallback if device restricts network callback
         }
     }
