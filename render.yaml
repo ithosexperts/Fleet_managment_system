@@ -1,0 +1,41 @@
+services:
+  - type: web
+    name: truck-tracker-api
+    runtime: node
+    plan: starter
+    buildCommand: npm ci --include=dev && npm run build:all
+    startCommand: npm run start
+    healthCheckPath: /api/health
+    disk:
+      name: trucktracker-data
+      mountPath: /data
+      sizeGB: 10
+    envVars:
+      - key: NODE_VERSION
+        value: 22.12.0
+      - key: DB_POOL_MAX
+        value: "10"
+      - key: DB_SSL
+        value: "true"
+      - key: DB_SSL_REJECT_UNAUTHORIZED
+        value: "true"
+      - key: DATABASE_URL
+        sync: false
+      - key: INITIAL_ADMIN_EMAIL
+        sync: false
+      - key: INITIAL_ADMIN_PASSWORD
+        sync: false
+      - key: AUTO_SEED
+        value: "false"
+      - key: UPLOADS_DIR
+        value: /data/uploads/photos
+      - key: ALLOWED_ORIGINS
+        value: https://fleet-managment-system-2-0.onrender.com
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: JWT_SECRET
+        generateValue: true
+
+

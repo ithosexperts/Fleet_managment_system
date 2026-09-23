@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="800" height="500">
+  <defs>
+    <linearGradient id="skyGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1e293b" />
+      <stop offset="70%" stop-color="#334155" />
+      <stop offset="100%" stop-color="#475569" />
+    </linearGradient>
+    <linearGradient id="roadGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1e293b" />
+      <stop offset="100%" stop-color="#0f172a" />
+    </linearGradient>
+  </defs>
+
+  <!-- Windshield View -->
+  <rect width="800" height="500" fill="#0b0f19" />
+  <rect x="20" y="20" width="760" height="460" rx="16" fill="none" stroke="#2a364f" stroke-width="2" />
+
+  <!-- Road & Sky Scene -->
+  <rect x="40" y="85" width="720" height="180" fill="url(#skyGrad)" />
+  <polygon points="40,265 760,265 800,420 0,420" fill="url(#roadGrad)" />
+  
+  <!-- Road Lane Markings -->
+  <line x1="400" y1="265" x2="350" y2="420" stroke="#f59e0b" stroke-width="3" stroke-dasharray="16 12" />
+  <line x1="400" y1="265" x2="450" y2="420" stroke="#ffffff" stroke-width="3" stroke-dasharray="16 12" />
+
+  <!-- Highway Toll Gate Structure -->
+  <rect x="160" y="140" width="480" height="18" fill="#e2e8f0" stroke="#64748b" stroke-width="2" />
+  <rect x="180" y="158" width="24" height="110" fill="#cbd5e1" />
+  <rect x="385" y="158" width="24" height="110" fill="#cbd5e1" />
+  <rect x="600" y="158" width="24" height="110" fill="#cbd5e1" />
+
+  <!-- Toll Signboard -->
+  <rect x="260" y="105" width="280" height="35" rx="4" fill="#1e3a8a" stroke="#3b82f6" stroke-width="2" />
+  <text x="400" y="128" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="#ffffff" text-anchor="middle">DELHI - UP BORDER FREIGHT TOLL</text>
+
+  <!-- Traffic Barrier & Queue -->
+  <line x1="204" y1="240" x2="385" y2="220" stroke="#ef4444" stroke-width="6" stroke-dasharray="16 8" />
+  <line x1="409" y1="240" x2="590" y2="220" stroke="#ef4444" stroke-width="6" stroke-dasharray="16 8" />
+
+  <!-- Queued Trucks Silhouette -->
+  <rect x="320" y="210" width="75" height="50" rx="4" fill="#0284c7" />
+  <rect x="330" y="200" width="55" height="25" rx="3" fill="#0369a1" />
+  <rect x="480" y="215" width="85" height="55" rx="4" fill="#b45309" />
+
+  <!-- Delay Reason Overlay Card -->
+  <rect x="80" y="280" width="640" height="115" rx="10" fill="rgba(15, 23, 42, 0.92)" stroke="#f59e0b" stroke-width="2" />
+  <text x="110" y="312" font-family="Inter, sans-serif" font-size="16" font-weight="800" fill="#f59e0b">⚠️ OPERATIONAL DELAY REPORTED: TRAFFIC CONGESTION</text>
+  <line x1="110" y1="324" x2="690" y2="324" stroke="#334155" />
+  <text x="110" y="348" font-family="Inter, sans-serif" font-size="13" fill="#e2e8f0">LOCATION: Ghazipur Border Commercial Tax &amp; Security Lane</text>
+  <text x="110" y="372" font-family="Inter, sans-serif" font-size="13" fill="#94a3b8">DETAILS: Single lane diversion due to flyover construction • Estimated 22 min delay</text>
+  <rect x="575" y="338" width="120" height="34" rx="6" fill="rgba(245, 158, 11, 0.2)" stroke="#f59e0b" />
+  <text x="635" y="360" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="#f59e0b" text-anchor="middle">+22 MINS</text>
+
+  <!-- Watermark Header Banner -->
+  <rect x="35" y="35" width="730" height="42" rx="6" fill="rgba(15, 23, 42, 0.85)" stroke="#1e293b" />
+  <text x="50" y="62" font-family="Inter, sans-serif" font-size="14" font-weight="700" fill="#f59e0b">DELAY EVIDENCE PHOTO</text>
+  <text x="310" y="62" font-family="Inter, sans-serif" font-size="12" fill="#94a3b8">TRIP: TR-DEL-2026-01</text>
+  <text x="560" y="62" font-family="Inter, sans-serif" font-size="12" fill="#ef4444">STOP 3: IN TRANSIT</text>
+
+  <!-- Footer Watermark Bar -->
+  <rect x="35" y="420" width="730" height="46" rx="6" fill="#090d16" />
+  <text x="50" y="448" font-family="'JetBrains Mono', monospace" font-size="12" fill="#cbd5e1">📍 28.6240° N, 77.3310° E • Ghazipur Freight Terminal, Delhi-UP Border</text>
+  <text x="610" y="448" font-family="'JetBrains Mono', monospace" font-size="12" fill="#f59e0b">10:35:40 AM IST</text>
+</svg>

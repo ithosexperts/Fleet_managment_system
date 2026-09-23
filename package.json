@@ -1,0 +1,41 @@
+{
+  "name": "truck-tracker",
+  "version": "1.1.0",
+  "private": true,
+  "description": "Internal Company Logistics & Vehicle Trip Tracking Application",
+  "workspaces": [
+    "server",
+    "web",
+    "shared"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev --workspace=server\" \"npm run dev --workspace=web\"",
+    "dev:server": "npm run dev --workspace=server",
+    "dev:web": "npm run dev --workspace=web",
+    "build": "npm run build --workspace=web && npm run build --workspace=server",
+    "build:web": "npm run build --workspace=web",
+    "build:server": "npm run build --workspace=server",
+    "build:all": "npm run build --workspace=web && npm run build --workspace=server",
+    "migrate": "npm run migrate --workspace=server",
+    "seed": "npm run seed --workspace=server",
+    "test": "npm run test:integrity --workspace=server",
+    "test:qa": "node scripts/verify-all-elements.cjs",
+    "test:audit": "node scripts/audit-live-render.cjs",
+    "start": "npm run start --workspace=server"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "puppeteer-core": "^25.11.0"
+  },
+  "keywords": [
+    "logistics",
+    "fleet-management",
+    "trip-tracking",
+    "internal-tool"
+  ],
+  "author": "Company Logistics Team",
+  "license": "MIT"
+}

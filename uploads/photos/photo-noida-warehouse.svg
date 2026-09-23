@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="800" height="500">
+  <defs>
+    <linearGradient id="noidaBg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a" />
+      <stop offset="100%" stop-color="#1e293b" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="800" height="500" fill="url(#noidaBg)" />
+  <rect x="20" y="20" width="760" height="460" rx="16" fill="none" stroke="#2a364f" stroke-width="2" />
+
+  <!-- High Tech Logistics Center Bay -->
+  <rect x="60" y="100" width="680" height="280" rx="10" fill="#0b111e" stroke="#1e293b" />
+  
+  <!-- High Bay Racking Shelves -->
+  <line x1="120" y1="130" x2="120" y2="350" stroke="#38bdf8" stroke-width="4" />
+  <line x1="260" y1="130" x2="260" y2="350" stroke="#38bdf8" stroke-width="4" />
+  <line x1="400" y1="130" x2="400" y2="350" stroke="#38bdf8" stroke-width="4" />
+  
+  <line x1="100" y1="180" x2="420" y2="180" stroke="#0284c7" stroke-width="2" />
+  <line x1="100" y1="240" x2="420" y2="240" stroke="#0284c7" stroke-width="2" />
+  <line x1="100" y1="300" x2="420" y2="300" stroke="#0284c7" stroke-width="2" />
+
+  <!-- Pallet boxes on shelves -->
+  <rect x="135" y="145" width="40" height="32" rx="2" fill="#d97706" />
+  <rect x="190" y="145" width="55" height="32" rx="2" fill="#d97706" />
+  <rect x="275" y="205" width="50" height="32" rx="2" fill="#059669" />
+  <rect x="335" y="205" width="50" height="32" rx="2" fill="#d97706" />
+
+  <!-- Destination Facility Card -->
+  <rect x="460" y="130" width="250" height="220" rx="8" fill="#131b2e" stroke="#334155" />
+  <text x="480" y="165" font-family="Inter, sans-serif" font-size="15" font-weight="800" fill="#ffffff">NOIDA SECTOR 62</text>
+  <text x="480" y="185" font-family="Inter, sans-serif" font-size="12" fill="#38bdf8">ELECTRONIC CITY MEGA HUB</text>
+  
+  <line x1="480" y1="198" x2="690" y2="198" stroke="#1e293b" />
+  
+  <text x="480" y="222" font-family="Inter, sans-serif" font-size="12" fill="#cbd5e1">BAY: Gate #4 (Inbound Unload)</text>
+  <text x="480" y="244" font-family="Inter, sans-serif" font-size="12" fill="#cbd5e1">MANAGER: Deepa Rastogi</text>
+  <text x="480" y="266" font-family="Inter, sans-serif" font-size="12" fill="#cbd5e1">GEOFENCE RADIUS: 250m</text>
+  <text x="480" y="288" font-family="Inter, sans-serif" font-size="12" fill="#cbd5e1">ACTIVE TRUCKS IN BAY: 3</text>
+
+  <rect x="480" y="305" width="140" height="30" rx="4" fill="rgba(56, 189, 248, 0.15)" stroke="#38bdf8" />
+  <text x="550" y="325" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#38bdf8" text-anchor="middle">FACILITY VERIFIED</text>
+
+  <!-- Watermark Header Banner -->
+  <rect x="35" y="35" width="730" height="42" rx="6" fill="rgba(15, 23, 42, 0.85)" stroke="#1e293b" />
+  <text x="50" y="62" font-family="Inter, sans-serif" font-size="14" font-weight="700" fill="#38bdf8">DESTINATION HUB PROFILE</text>
+  <text x="320" y="62" font-family="Inter, sans-serif" font-size="12" fill="#94a3b8">FACILITY CODE: NOD-62-MEGA</text>
+  <text x="580" y="62" font-family="Inter, sans-serif" font-size="12" fill="#10b981">GEOFENCE ACTIVE</text>
+
+  <!-- Footer Watermark Bar -->
+  <rect x="35" y="420" width="730" height="46" rx="6" fill="#090d16" />
+  <text x="50" y="448" font-family="'JetBrains Mono', monospace" font-size="12" fill="#cbd5e1">📍 28.6280° N, 77.3680° E • Noida Sector 62 Electronic City, Noida (UP)</text>
+  <text x="610" y="448" font-family="'JetBrains Mono', monospace" font-size="12" fill="#38bdf8">11:15:00 AM IST</text>
+</svg>

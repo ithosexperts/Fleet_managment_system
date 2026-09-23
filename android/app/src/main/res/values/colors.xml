@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Luxury Corporate Dark Theme Palette -->
+    <color name="charcoal_primary">#0E1013</color>
+    <color name="charcoal_surface">#1A1E26</color>
+    <color name="charcoal_card">#242A35</color>
+    <color name="gold_accent">#C5A059</color>
+    <color name="gold_accent_dark">#9C7C3B</color>
+    <color name="gold_accent_light">#E0BF7E</color>
+    <color name="text_primary">#F5F5F7</color>
+    <color name="text_secondary">#8E9BAE</color>
+    <color name="text_muted">#5E6A7D</color>
+    <color name="border_subtle">#2D3442</color>
+    <color name="status_green">#34D399</color>
+    <color name="status_amber">#FBBF24</color>
+    <color name="status_red">#F87171</color>
+    <color name="status_blue">#60A5FA</color>
+</resources>

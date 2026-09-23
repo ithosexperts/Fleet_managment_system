@@ -1,0 +1,25 @@
+services:
+  truck-tracker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: truck_tracker_app
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - PORT=5000
+      - NODE_ENV=production
+      - JWT_SECRET=${JWT_SECRET}
+      - DATABASE_URL=${DATABASE_URL}
+      - DB_POOL_MAX=${DB_POOL_MAX:-10}
+      - DB_SSL=${DB_SSL:-true}
+      - DB_SSL_REJECT_UNAUTHORIZED=${DB_SSL_REJECT_UNAUTHORIZED:-true}
+      - UPLOADS_DIR=/app/server/uploads/photos
+    volumes:
+      # Persistent driver photo proofs storage
+      - tracker_photos:/app/server/uploads/photos
+
+volumes:
+  tracker_photos:
+    driver: local

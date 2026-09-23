@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- Official HoseXperts Brand Favicon -->
+    <link rel="icon" type="image/png" href="/hosexperts-logo.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="description" content="HoseXperts TruckTracker is an enterprise logistics and fleet operations platform providing real-time telematics, driver workflow navigation, and dispatch control." />
+    
+    <!-- Open Graph Metadata -->
+    <meta property="og:title" content="HoseXperts TruckTracker — Enterprise Fleet Operations & Dispatch Logistics" />
+    <meta property="og:description" content="HoseXperts enterprise fleet operations and dispatch logistics platform with real-time telematics. Working with the flow." />
+    <meta property="og:image" content="/hosexperts-logo.png" />
+    <meta property="og:type" content="website" />
+
+    <title>HoseXperts TruckTracker — Fleet Operations & Dispatch Logistics</title>
+
+    <!-- Google Fonts: Inter & Outfit -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+    <!-- Leaflet CSS for maps -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  </head>
+  <body>
+    <div id="root">
+      <div style="min-height:100vh;background:#0B101B;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;font-family:'Inter',system-ui,-apple-system,sans-serif;">
+        <div style="padding:14px 26px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:16px;box-shadow:0 15px 35px -10px rgba(0,0,0,0.6),0 0 24px rgba(23,100,168,0.2);animation:hxPulse 2.2s infinite ease-in-out;">
+          <img src="/hosexperts-logo.png" alt="HoseXperts Official Logo" style="height:54px;width:auto;object-fit:contain;filter:brightness(0) invert(1);display:block;" />
+        </div>
+        <div style="width:170px;height:4px;background:rgba(255,255,255,0.1);border-radius:9999px;overflow:hidden;position:relative;">
+          <div style="width:55px;height:100%;background:#1764A8;border-radius:9999px;animation:hxSlide 1.2s infinite ease-in-out;"></div>
+        </div>
+        <span style="color:#94a3b8;font-size:0.84rem;font-weight:600;letter-spacing:0.04em;">Loading HoseXperts TruckTracker...</span>
+        <style>
+          @keyframes hxPulse { 0%, 100% { opacity: 0.9; transform: scale(1); } 50% { opacity: 1; transform: scale(1.025); } }
+          @keyframes hxSlide { 0% { transform: translateX(-55px); } 100% { transform: translateX(170px); } }
+        </style>
+      </div>
+    </div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

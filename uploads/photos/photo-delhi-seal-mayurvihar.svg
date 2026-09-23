@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="800" height="500">
+  <defs>
+    <linearGradient id="doorGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e293b" />
+      <stop offset="100%" stop-color="#0f172a" />
+    </linearGradient>
+    <linearGradient id="barGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#94a3b8" />
+      <stop offset="50%" stop-color="#cbd5e1" />
+      <stop offset="100%" stop-color="#64748b" />
+    </linearGradient>
+    <linearGradient id="sealRed" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ef4444" />
+      <stop offset="100%" stop-color="#b91c1c" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background Steel Container Door -->
+  <rect width="800" height="500" fill="url(#doorGrad)" />
+  <rect x="20" y="20" width="760" height="460" rx="16" fill="none" stroke="#334155" stroke-width="2" />
+
+  <!-- Vertical Container Ribs -->
+  <rect x="80" y="80" width="40" height="340" fill="#172033" stroke="#25324b" />
+  <rect x="200" y="80" width="40" height="340" fill="#172033" stroke="#25324b" />
+  <rect x="560" y="80" width="40" height="340" fill="#172033" stroke="#25324b" />
+  <rect x="680" y="80" width="40" height="340" fill="#172033" stroke="#25324b" />
+
+  <!-- Center Locking Rod -->
+  <rect x="375" y="60" width="22" height="370" rx="4" fill="url(#barGrad)" stroke="#475569" stroke-width="2" />
+  <!-- Lock Handle Bracket -->
+  <rect x="340" y="220" width="110" height="60" rx="6" fill="#334155" stroke="#1e293b" stroke-width="2" />
+  
+  <!-- High Security Bolt Seal -->
+  <rect x="375" y="210" width="22" height="90" rx="3" fill="url(#sealRed)" stroke="#7f1d1d" stroke-width="2" />
+  <circle cx="386" cy="225" r="14" fill="#ef4444" stroke="#991b1b" stroke-width="2" />
+  <!-- Seal Barcode & Serial -->
+  <text x="386" y="275" font-family="'JetBrains Mono', monospace" font-size="10" font-weight="700" fill="#ffffff" transform="rotate(-90 386 275)">SEAL-DL-9942</text>
+
+  <!-- Inspection Certificate Card -->
+  <rect x="470" y="150" width="260" height="190" rx="8" fill="#0b111e" stroke="#3b82f6" stroke-width="2" />
+  <text x="490" y="180" font-family="Inter, sans-serif" font-size="14" font-weight="700" fill="#38bdf8">SECURITY SEAL AUDIT</text>
+  <line x1="490" y1="192" x2="710" y2="192" stroke="#1e293b" />
+  
+  <text x="490" y="215" font-family="Inter, sans-serif" font-size="12" fill="#cbd5e1">TAG NO: #SEAL-DL-9942</text>
+  <text x="490" y="235" font-family="Inter, sans-serif" font-size="12" fill="#cbd5e1">STOP: Mayur Vihar Depot (East Delhi)</text>
+  <text x="490" y="255" font-family="Inter, sans-serif" font-size="12" fill="#cbd5e1">INSPECTOR: R. Sharma (Driver)</text>
+  <text x="490" y="275" font-family="Inter, sans-serif" font-size="12" fill="#cbd5e1">TAMPER CHECK: Intact &amp; Verified</text>
+
+  <rect x="490" y="292" width="120" height="30" rx="4" fill="rgba(16, 185, 129, 0.15)" stroke="#10b981" />
+  <text x="550" y="312" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="#10b981" text-anchor="middle">STATUS: PASSED</text>
+
+  <!-- Watermark Header Banner -->
+  <rect x="35" y="35" width="730" height="42" rx="6" fill="rgba(15, 23, 42, 0.85)" stroke="#1e293b" />
+  <text x="50" y="62" font-family="Inter, sans-serif" font-size="14" font-weight="700" fill="#38bdf8">TRANSIT SEAL INSPECTION</text>
+  <text x="320" y="62" font-family="Inter, sans-serif" font-size="12" fill="#94a3b8">VEHICLE: DL01 TA 4920</text>
+  <text x="560" y="62" font-family="Inter, sans-serif" font-size="12" fill="#c5a059">STOP 2 OF 5 COMPLETED</text>
+
+  <!-- Footer Watermark Bar -->
+  <rect x="35" y="420" width="730" height="46" rx="6" fill="#090d16" />
+  <text x="50" y="448" font-family="'JetBrains Mono', monospace" font-size="12" fill="#cbd5e1">📍 28.6015° N, 77.2940° E • Mayur Vihar Phase-1 Hub, East Delhi</text>
+  <text x="610" y="448" font-family="'JetBrains Mono', monospace" font-size="12" fill="#38bdf8">10:02:18 AM IST</text>
+</svg>
