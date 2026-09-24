@@ -90,6 +90,7 @@ fun MainAppHost(
     var selectedStop by remember { mutableStateOf<TripStop?>(null) }
     var todaysTrips by remember { mutableStateOf<List<Trip>>(emptyList()) }
     var tripHistory by remember { mutableStateOf<List<Trip>>(emptyList()) }
+    var selectedLanguage by remember { mutableStateOf(AppLanguage.ENGLISH) }
 
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -185,6 +186,7 @@ fun MainAppHost(
                 },
                 isDarkTheme = isDarkTheme,
                 onToggleTheme = onToggleTheme,
+                selectedLanguage = selectedLanguage,
                 onStartTrip = {
                     activeTrip?.let { trip ->
                         scope.launch {
