@@ -73,7 +73,7 @@ fun SplashScreen(isLoading: Boolean, onSessionChecked: (Boolean) -> Unit) {
 // -------------------------------------------------------------
 @Composable
 fun LoginScreen(
-    currentBaseUrl: String = "https://truck-tracker-api-9yhq.onrender.com/",
+    currentBaseUrl: String = "https://fleet-managment-system-638o.onrender.com/",
     onUpdateBaseUrl: (String) -> Unit = {},
     isLoading: Boolean,
     errorMessage: String?,
@@ -81,8 +81,8 @@ fun LoginScreen(
     onToggleTheme: () -> Unit = {},
     onLoginSubmit: (String, String) -> Unit
 ) {
-    var email by remember { mutableStateOf("rahul@company.com") }
-    var password by remember { mutableStateOf("driver123") }
+    var email by remember { mutableStateOf("driver@company.com") }
+    var password by remember { mutableStateOf("") }
     var showServerConfig by remember { mutableStateOf(false) }
     var serverUrlInput by remember { mutableStateOf(currentBaseUrl) }
 

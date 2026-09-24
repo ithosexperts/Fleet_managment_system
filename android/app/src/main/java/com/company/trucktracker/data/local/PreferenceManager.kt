@@ -73,6 +73,6 @@ class PreferenceManager(context: Context) {
         private const val KEY_BASE_URL = "base_url"
         private const val KEY_DARK_THEME = "dark_theme"
         // Production Render backend API URL
-        const val DEFAULT_BASE_URL = "https://truck-tracker-api-9yhq.onrender.com/"
+        const val DEFAULT_BASE_URL = "https://fleet-managment-system-638o.onrender.com/"
     }
 }
