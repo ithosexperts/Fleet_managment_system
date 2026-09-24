@@ -67,7 +67,7 @@ object AppStrings {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// SCREEN 1: SPLASH / SESSION LOADER  (always dark — brand screen)
+// SCREEN 1: SPLASH / SESSION LOADER
 // ─────────────────────────────────────────────────────────────────────────
 @Composable
 fun SplashScreen(isLoading: Boolean, onSessionChecked: (Boolean) -> Unit) {
@@ -110,10 +110,9 @@ fun SplashScreen(isLoading: Boolean, onSessionChecked: (Boolean) -> Unit) {
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Splash is always on dark background — white text is correct here
             Text(
                 "HOSEXPERTS TRUCKTRACKER",
-                color = Color(0xFFF1F5F9), // always white on dark splash
+                color = TextPrimary,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.ExtraBold,
                 letterSpacing = 2.sp
@@ -136,7 +135,7 @@ fun SplashScreen(isLoading: Boolean, onSessionChecked: (Boolean) -> Unit) {
                         strokeWidth = 3.dp
                     )
                     Spacer(modifier = Modifier.height(12.dp))
-                    Text("Verifying session...", color = Color(0xFF94A3B8), fontSize = 12.sp)
+                    Text("Verifying session...", color = TextMuted, fontSize = 12.sp)
                 }
             }
         }
@@ -551,7 +550,7 @@ fun PremiumTextField(
     isPassword: Boolean = false,
     showPassword: Boolean = false,
     onTogglePassword: () -> Unit = {},
-    isDarkTheme: Boolean = true  // kept for API compatibility, theme is auto from MaterialTheme
+    isDarkTheme: Boolean = true
 ) {
     OutlinedTextField(
         value = value,
@@ -1554,7 +1553,8 @@ fun ActivityScreen(
                     value = quantity,
                     onValueChange = { quantity = it },
                     label = "Quantity",
-                    leadingIcon = Icons.Default.Numbers
+                    leadingIcon = Icons.Default.Numbers,
+                    isDarkTheme = true
                 )
             }
             item {
@@ -1562,7 +1562,8 @@ fun ActivityScreen(
                     value = recipient,
                     onValueChange = { recipient = it },
                     label = "Recipient Name / Signature Reference",
-                    leadingIcon = Icons.Default.Person
+                    leadingIcon = Icons.Default.Person,
+                    isDarkTheme = true
                 )
             }
             item {
@@ -1964,25 +1965,15 @@ fun TripHistoryScreen(history: List<Trip>, onBack: () -> Unit) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// SCREEN 17: DRIVER PROFILE — With camera avatar + full theme support
+// SCREEN 17: DRIVER PROFILE — Enhanced
 // ─────────────────────────────────────────────────────────────────────────
 @Composable
-fun ProfileScreen(
-    user: User?,
-    onLogout: () -> Unit,
-    onBack: () -> Unit,
-    onChangePhoto: () -> Unit = {}
-) {
+fun ProfileScreen(user: User?, onLogout: () -> Unit, onBack: () -> Unit) {
     Scaffold(
         topBar = {
             Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 2.dp) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onSurface)
-                    }
+                Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onSurface) }
                     Text("Driver Profile", color = MaterialTheme.colorScheme.onSurface, fontSize = 17.sp, fontWeight = FontWeight.Bold)
                 }
             }
@@ -1995,91 +1986,36 @@ fun ProfileScreen(
             contentPadding = PaddingValues(vertical = 20.dp)
         ) {
             item {
-                // ── Avatar Card with camera button ──
+                // Avatar + name header
                 Card(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     shape = RoundedCornerShape(16.dp),
                     elevation = CardDefaults.cardElevation(2.dp)
                 ) {
                     Column(
-                        modifier = Modifier.fillMaxWidth().padding(28.dp),
+                        modifier = Modifier.fillMaxWidth().padding(24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        // Avatar with camera overlay
-                        Box(contentAlignment = Alignment.BottomEnd) {
-                            // Main avatar circle
-                            Box(
-                                modifier = Modifier
-                                    .size(90.dp)
-                                    .clip(CircleShape)
-                                    .background(
-                                        Brush.radialGradient(
-                                            colors = listOf(HoseXpertsBlueLight, HoseXpertsBlueDark)
-                                        )
-                                    ),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    (user?.name?.firstOrNull()?.uppercaseChar() ?: 'D').toString(),
-                                    color = Color.White,
-                                    fontSize = 38.sp,
-                                    fontWeight = FontWeight.ExtraBold
-                                )
-                            }
-                            // Camera button badge
-                            Box(
-                                modifier = Modifier
-                                    .size(30.dp)
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.surface)
-                                    .border(2.dp, MaterialTheme.colorScheme.background, CircleShape)
-                                    .clickable { onChangePhoto() },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Surface(
-                                    shape = CircleShape,
-                                    color = HoseXpertsBlue,
-                                    modifier = Modifier.size(26.dp)
-                                ) {
-                                    Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                                        Icon(
-                                            Icons.Default.CameraAlt,
-                                            contentDescription = "Change profile photo",
-                                            tint = Color.White,
-                                            modifier = Modifier.size(14.dp)
-                                        )
-                                    }
-                                }
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(4.dp))
-                        TextButton(onClick = onChangePhoto) {
+                        Box(
+                            modifier = Modifier
+                                .size(80.dp)
+                                .clip(CircleShape)
+                                .background(HoseXpertsBlue),
+                            contentAlignment = Alignment.Center
+                        ) {
                             Text(
-                                "Change Photo",
-                                color = HoseXpertsBlueLight,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium
+                                (user?.name?.firstOrNull()?.uppercaseChar() ?: 'D').toString(),
+                                color = Color.White,
+                                fontSize = 34.sp,
+                                fontWeight = FontWeight.ExtraBold
                             )
                         }
-
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            user?.name ?: "Driver",
-                            color = MaterialTheme.colorScheme.onSurface,
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.ExtraBold
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            user?.email ?: "",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 13.sp
-                        )
+                        Spacer(modifier = Modifier.height(14.dp))
+                        Text(user?.name ?: "Driver", color = MaterialTheme.colorScheme.onSurface, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
+                        Text(user?.email ?: "", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
                     }
                 }
             }
-
             item {
                 Card(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -2088,24 +2024,20 @@ fun ProfileScreen(
                 ) {
                     Column(modifier = Modifier.fillMaxWidth()) {
                         ProfileInfoRow(icon = Icons.Default.Badge, label = "Employee ID", value = user?.employee_id ?: "EMP-2026")
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+                        Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
                         ProfileInfoRow(icon = Icons.Default.Work, label = "Role", value = user?.role ?: "Driver")
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+                        Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
                         ProfileInfoRow(icon = Icons.Default.VerifiedUser, label = "Status", value = "Active")
                     }
                 }
             }
-
             item {
                 Spacer(modifier = Modifier.height(8.dp))
                 Button(
                     onClick = onLogout,
                     modifier = Modifier.fillMaxWidth().height(52.dp),
                     shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = StatusRed.copy(alpha = 0.12f),
-                        contentColor = StatusRed
-                    ),
+                    colors = ButtonDefaults.buttonColors(containerColor = StatusRed.copy(alpha = 0.12f), contentColor = StatusRed),
                     border = androidx.compose.foundation.BorderStroke(1.dp, StatusRed.copy(alpha = 0.4f))
                 ) {
                     Icon(Icons.Default.Logout, contentDescription = null, modifier = Modifier.size(20.dp))
