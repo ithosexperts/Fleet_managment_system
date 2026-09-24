@@ -284,15 +284,15 @@ export const CameraModal: React.FC<Props> = ({
     setUploading(true);
 
     try {
-      const coords = await getCurrentGpsPosition();
+      const coords: any = await getCurrentGpsPosition().catch(() => ({}));
       const formData = new FormData();
       formData.append('photo', capturedBlob, `proof_${Date.now()}.jpg`);
       formData.append('trip_id', tripId);
-      if (stopId) formData.append('stop_id', stopId);
+      if (stopId && stopId !== 'undefined' && stopId !== 'null') formData.append('stop_id', stopId);
       formData.append('photo_type', photoType);
-      if (coords.latitude) formData.append('latitude', coords.latitude.toString());
-      if (coords.longitude) formData.append('longitude', coords.longitude.toString());
-      if (coords.gps_accuracy) formData.append('gps_accuracy', coords.gps_accuracy.toString());
+      if (coords && coords.latitude) formData.append('latitude', coords.latitude.toString());
+      if (coords && coords.longitude) formData.append('longitude', coords.longitude.toString());
+      if (coords && coords.gps_accuracy) formData.append('gps_accuracy', coords.gps_accuracy.toString());
 
       const res = await api.photos.upload(formData);
       onSuccess(res.photo);

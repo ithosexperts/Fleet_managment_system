@@ -313,10 +313,11 @@ const DriverViewInner: React.FC<Props> = ({
       const data = await api.driver.getTrip(tripId);
       setActiveTrip(data.trip);
       // Keep selected stop in sync
-      if (selectedStopForWorkflow) {
-        const refreshed = data.trip.stops?.find((s: TripStop) => s.id === selectedStopForWorkflow.id);
-        if (refreshed) setSelectedStopForWorkflow(refreshed);
-      }
+      setSelectedStopForWorkflow((prev) => {
+        if (!prev) return prev;
+        const refreshed = data.trip?.stops?.find((s: TripStop) => s.id === prev.id);
+        return refreshed || prev;
+      });
     } catch (err) {
       console.error('Failed to load trip details:', err);
     }
@@ -855,6 +856,10 @@ const DriverViewInner: React.FC<Props> = ({
                     onAddCustomStop={() => setIsCustomStopOpen(true)}
                     onOpenDocuments={() => setIsVehiclePapersOpen(true)}
                     onBack={() => setSelectedStopForWorkflow(null)}
+                    hasPodUploaded={Boolean(
+                      (selectedStopForWorkflow.photos && selectedStopForWorkflow.photos.length > 0) ||
+                      (activeTrip?.photos && activeTrip.photos.some((p: any) => p.stop_id === selectedStopForWorkflow.id))
+                    )}
                   />
                 ) : activeTrip ? (
                   /* Vertical Timeline of All Stops */
@@ -966,8 +971,16 @@ const DriverViewInner: React.FC<Props> = ({
       {isCameraOpen && activeTrip && (
         <CameraModal
           tripId={activeTrip.id}
-          stopId={targetNextStop?.id}
-          onSuccess={() => loadTripDetails(activeTrip.id)}
+          stopId={selectedStopForWorkflow?.id || targetNextStop?.id}
+          onSuccess={(uploadedPhoto) => {
+            if (uploadedPhoto && selectedStopForWorkflow) {
+              setSelectedStopForWorkflow((prev) => prev ? {
+                ...prev,
+                photos: [...(prev.photos || []), uploadedPhoto]
+              } : prev);
+            }
+            loadTripDetails(activeTrip.id);
+          }}
           onClose={() => setIsCameraOpen(false)}
         />
       )}

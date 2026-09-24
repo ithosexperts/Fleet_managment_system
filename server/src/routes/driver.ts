@@ -89,6 +89,7 @@ router.get('/trips/active', requireAuth, async (req: AuthenticatedRequest, res: 
   }
   trip.delays = (await query(`SELECT * FROM delays WHERE trip_id = $1 AND is_resolved = 0 ORDER BY start_time DESC`, [trip.id])).rows;
   trip.events = (await query(`SELECT * FROM trip_events WHERE trip_id = $1 ORDER BY timestamp ASC`, [trip.id])).rows;
+  trip.photos = (await query(`SELECT * FROM photos WHERE trip_id = $1 ORDER BY timestamp DESC`, [trip.id])).rows;
 
   return res.json({ trip });
 });

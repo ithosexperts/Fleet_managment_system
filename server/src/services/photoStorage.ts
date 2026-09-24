@@ -26,7 +26,18 @@ export const UPLOADS_DIR = resolveUploadsDir();
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => {
-    cb(null, UPLOADS_DIR);
+    try {
+      if (!fs.existsSync(UPLOADS_DIR)) {
+        fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+      }
+      cb(null, UPLOADS_DIR);
+    } catch {
+      const fallback = path.resolve(__dirname, '../../uploads/photos');
+      if (!fs.existsSync(fallback)) {
+        fs.mkdirSync(fallback, { recursive: true });
+      }
+      cb(null, fallback);
+    }
   },
   filename: (_req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
@@ -39,11 +50,12 @@ const fileFilter = (
   file: Express.Multer.File,
   cb: multer.FileFilterCallback
 ) => {
-  const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
-  if (allowed.includes(file.mimetype)) {
+  const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg', 'image/pjpeg', 'application/octet-stream'];
+  const hasImageExt = /\.(jpe?g|png|webp)$/i.test(file.originalname);
+  if (allowed.includes(file.mimetype) || hasImageExt) {
     cb(null, true);
   } else {
-    cb(new Error('Invalid image file type. Only JPEG, PNG, and WebP are supported.'));
+    cb(new Error(`Invalid image file type (${file.mimetype}). Supported formats: JPEG, PNG, WebP.`));
   }
 };
 

@@ -58,11 +58,13 @@ export const StopWorkflowCard: React.FC<Props> = ({
   const isCompleted = stop.status === 'COMPLETED';
   const isArrived = stop.status === 'ARRIVED' || isCompleted;
 
+  const hasUploadedProof = hasPodUploaded || (Array.isArray(stop.photos) && stop.photos.length > 0) || (Array.isArray((stop as any).activities) && (stop as any).activities.length > 0);
+
   // Progressive state determination
   let currentState: 1 | 2 | 3 | 4 | 5 = 1;
   if (isCompleted) {
     currentState = 5;
-  } else if (hasPodUploaded) {
+  } else if (hasUploadedProof) {
     currentState = 4;
   } else if (hasCheckedIn) {
     currentState = 3;

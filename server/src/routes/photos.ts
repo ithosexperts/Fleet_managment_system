@@ -45,9 +45,31 @@ router.post(
     }
 
     // Security check: Driver can only upload photos to their own assigned trips
-    if (req.user!.role === 'DRIVER' && trip.driver_id !== req.user!.id) {
-      fs.unlinkSync(req.file.path);
-      return res.status(403).json({ error: 'You are not authorized to upload photos to another driver\'s trip' });
+    if (req.user!.role === 'DRIVER') {
+      const driver = (await query(`SELECT id, user_id FROM drivers WHERE user_id = $1 OR id = $1`, [req.user!.id])).rows[0] as any;
+      const isAuthorized = trip.driver_id === req.user!.id || (driver && (trip.driver_id === driver.id || trip.driver_id === driver.user_id));
+      if (!isAuthorized) {
+        if (req.file && fs.existsSync(req.file.path)) {
+          try { fs.unlinkSync(req.file.path); } catch {}
+        }
+        return res.status(403).json({ error: 'You are not authorized to upload photos to another driver\'s trip' });
+      }
+    }
+
+    // Ensure valid vehicleId for foreign key constraint
+    let vehicleId = trip.vehicle_id;
+    if (!vehicleId) {
+      const firstVehicle = (await query(`SELECT id FROM vehicles LIMIT 1`)).rows[0] as any;
+      vehicleId = firstVehicle?.id || 'UNASSIGNED';
+    }
+
+    // Ensure stopId exists in trip_stops to avoid foreign key errors
+    let validStopId: string | null = null;
+    if (stop_id && stop_id !== 'undefined' && stop_id !== 'null') {
+      const stopExists = (await query(`SELECT id FROM trip_stops WHERE id = $1`, [stop_id])).rows[0];
+      if (stopExists) {
+        validStopId = stop_id;
+      }
     }
 
     try {
@@ -56,9 +78,9 @@ router.post(
 
       const photo: any = await savePhotoRecord({
         tripId: trip_id,
-        stopId: stop_id || undefined,
+        stopId: validStopId || undefined,
         driverId: req.user!.id,
-        vehicleId: trip.vehicle_id,
+        vehicleId,
         photoType: photo_type as PhotoType,
         filePath: req.file.filename,
         fileSize: req.file.size,
@@ -72,9 +94,9 @@ router.post(
       hosexpertsSync.syncPhoto('insert', {
         id: photo.id,
         trip_id,
-        stop_id: stop_id || null,
+        stop_id: validStopId || null,
         driver_id: req.user!.id,
-        vehicle_id: trip.vehicle_id,
+        vehicle_id: vehicleId,
         photo_type,
         file_path: req.file.filename,
         file_size: req.file.size,
@@ -91,8 +113,11 @@ router.post(
         photo
       });
     } catch (err: any) {
+      if (req.file && fs.existsSync(req.file.path)) {
+        try { fs.unlinkSync(req.file.path); } catch {}
+      }
       console.error('[Photos Error] Failed to record photo:', err);
-      return res.status(500).json({ error: 'Failed to record photo' });
+      return res.status(500).json({ error: err.message || 'Failed to record photo' });
     }
   }
 );
