@@ -640,4 +640,50 @@ router.post('/:id/cancel', requireAuth, requireRole('MANAGER'), async (req: Auth
   return res.json({ message: 'Trip cancelled' });
 });
 
+/**
+ * DELETE /api/trips/:id
+ * Delete a trip completely and release vehicle & driver
+ */
+router.delete('/:id', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const tripId = req.params.id;
+  const isManager = req.user!.role === 'MANAGER';
+  const driverId = req.user!.id;
+
+  const trip = (await query<Trip>(`SELECT * FROM trips WHERE id = $1`, [tripId])).rows[0];
+  if (!trip) return res.status(404).json({ error: 'Trip not found' });
+
+  if (!isManager && trip.driver_id !== driverId) {
+    const isDriverMatch = (await query(`SELECT id FROM drivers WHERE user_id = $1 AND id = $2`, [driverId, trip.driver_id])).rows[0];
+    if (!isDriverMatch) {
+      return res.status(403).json({ error: 'Unauthorized to delete this trip' });
+    }
+  }
+
+  try {
+    await withTransaction(async (client) => {
+      await client.query(`DELETE FROM activities WHERE trip_id = $1`, [tripId]);
+      await client.query(`DELETE FROM photos WHERE trip_id = $1`, [tripId]);
+      await client.query(`DELETE FROM delays WHERE trip_id = $1`, [tripId]);
+      await client.query(`DELETE FROM trip_events WHERE trip_id = $1`, [tripId]);
+      await client.query(`DELETE FROM trip_telemetry WHERE trip_id = $1`, [tripId]);
+      await client.query(`DELETE FROM trip_stops WHERE trip_id = $1`, [tripId]);
+      await client.query(`DELETE FROM trips WHERE id = $1`, [tripId]);
+      if (trip.vehicle_id) {
+        await client.query(`UPDATE vehicles SET status = 'AVAILABLE' WHERE id = $1`, [trip.vehicle_id]);
+      }
+      if (trip.driver_id) {
+        await client.query(`UPDATE drivers SET status = 'AVAILABLE' WHERE id = $1 OR user_id = $1`, [trip.driver_id]);
+      }
+    });
+
+    // Also sync deletion to SQL Server
+    hosexpertsSync.syncTrip('delete', {}, tripId).catch(err => console.error('[HoseXperts Sync] Trip delete sync failed:', err));
+
+    return res.json({ message: 'Trip deleted successfully' });
+  } catch (err: any) {
+    console.error('[Trips Error] Failed to delete trip:', err);
+    return res.status(500).json({ error: 'Failed to delete trip' });
+  }
+});
+
 export default router;

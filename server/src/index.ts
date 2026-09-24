@@ -31,6 +31,22 @@ if (!jwtSecret || jwtSecret.length < 32) {
 await checkDatabaseConnection();
 await initDatabase();
 
+// Clean up TR-2026-00001 and release vehicle/driver as requested
+try {
+  await query(`DELETE FROM activities WHERE trip_id = 'TR-2026-00001'`);
+  await query(`DELETE FROM photos WHERE trip_id = 'TR-2026-00001'`);
+  await query(`DELETE FROM delays WHERE trip_id = 'TR-2026-00001'`);
+  await query(`DELETE FROM trip_events WHERE trip_id = 'TR-2026-00001'`);
+  await query(`DELETE FROM trip_telemetry WHERE trip_id = 'TR-2026-00001'`);
+  await query(`DELETE FROM trip_stops WHERE trip_id = 'TR-2026-00001'`);
+  await query(`DELETE FROM trips WHERE id = 'TR-2026-00001'`);
+  await query(`UPDATE vehicles SET status = 'AVAILABLE' WHERE status != 'MAINTENANCE'`);
+  await query(`UPDATE drivers SET status = 'AVAILABLE' WHERE status != 'ON_LEAVE'`);
+  console.log('🧹 Cleaned up TR-2026-00001 from database');
+} catch (err: any) {
+  console.warn('[Cleanup Warning]', err.message);
+}
+
 // Ensure clean initial credentials if database is empty, without seeding dummy trips or data
 try {
   const userCountRow = (await query<{ count: string }>('SELECT COUNT(*)::text as count FROM users')).rows[0];

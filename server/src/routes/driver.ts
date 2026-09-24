@@ -932,12 +932,12 @@ router.post('/trips/:id/complete', requireAuth, async (req: AuthenticatedRequest
     return res.status(400).json({ error: 'Cannot complete a trip that has not been started' });
   }
 
-  // Enforce base arrival
-  if (!trip.base_arrival_time) {
-    return res.status(400).json({ error: 'You must arrive at company base before completing the trip' });
-  }
-
   const now = new Date().toISOString();
+
+  // If base arrival not explicitly recorded, auto-record it now upon trip completion
+  if (!trip.base_arrival_time) {
+    await query(`UPDATE trips SET base_arrival_time = $1 WHERE id = $2`, [now, tripId]);
+  }
 
   // Compute total distance from chronological GPS events
   const events = (await query<{ latitude?: number; longitude?: number }>(`

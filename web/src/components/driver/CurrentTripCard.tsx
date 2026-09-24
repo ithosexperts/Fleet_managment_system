@@ -7,6 +7,7 @@ interface Props {
   trip: Trip | null;
   onViewTripDetails: () => void;
   onStartTrip?: () => void;
+  onCompleteTrip?: () => void;
   actionLoading?: boolean;
 }
 
@@ -14,6 +15,7 @@ export const CurrentTripCard: React.FC<Props> = ({
   trip,
   onViewTripDetails,
   onStartTrip,
+  onCompleteTrip,
   actionLoading = false
 }) => {
   const { t } = useDriverTranslation();
@@ -269,7 +271,7 @@ export const CurrentTripCard: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* Action CTA Button: Start Trip or View Trip Details */}
+      {/* Action CTA Button: Start Trip, Complete Trip, or View Trip Details */}
       {isPlanned && onStartTrip ? (
         <button
           type="button"
@@ -294,6 +296,31 @@ export const CurrentTripCard: React.FC<Props> = ({
         >
           <Play size={18} fill="currentColor" />
           <span>{actionLoading ? t.startingTrip : t.startTrip}</span>
+        </button>
+      ) : completedStops === totalStops && totalStops > 0 && onCompleteTrip ? (
+        <button
+          type="button"
+          onClick={onCompleteTrip}
+          disabled={actionLoading}
+          style={{
+            width: '100%',
+            minHeight: '48px',
+            backgroundColor: '#10B981',
+            color: '#FFFFFF',
+            border: 'none',
+            borderRadius: '12px',
+            fontSize: '0.96rem',
+            fontWeight: 800,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            cursor: 'pointer',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)'
+          }}
+        >
+          <CheckCircle2 size={18} />
+          <span>{actionLoading ? 'Completing Trip...' : 'Complete Trip & Finish Duty'}</span>
         </button>
       ) : (
         <button

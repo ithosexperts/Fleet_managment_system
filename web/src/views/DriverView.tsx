@@ -395,6 +395,24 @@ const DriverViewInner: React.FC<Props> = ({
     }
   };
 
+  const handleCompleteTrip = async () => {
+    if (!activeTrip) return;
+    if (!window.confirm('All scheduled stops are delivered. Complete and close this trip?')) return;
+    setActionLoading(true);
+    try {
+      const coords = await getCurrentGpsPosition().catch(() => ({}));
+      await api.driver.completeTrip(activeTrip.id, coords);
+      alert('Trip completed successfully! Have a safe rest of your day.');
+      setActiveTrip(null);
+      setSelectedStopForWorkflow(null);
+      await loadTodayTrips();
+    } catch (err: any) {
+      alert(err.message || 'Failed to complete trip');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleMarkDeliveredProgressive = async () => {
     const targetStop = selectedStopForWorkflow || currentStop;
     if (!activeTrip || !targetStop) return;
@@ -412,6 +430,21 @@ const DriverViewInner: React.FC<Props> = ({
       setGeofenceFeedback(null);
       await loadTripDetails(activeTrip.id);
       setSelectedStopForWorkflow(null); // return to timeline after departing
+
+      // Check if all stops are now completed
+      const updatedTripRes = await api.driver.getTrip(activeTrip.id).catch(() => null);
+      if (updatedTripRes?.trip) {
+        const remainingStops = updatedTripRes.trip.stops?.filter((s: TripStop) => s.status !== 'COMPLETED') || [];
+        if (remainingStops.length === 0) {
+          if (window.confirm('All stops for this trip are completed! Would you like to finish and close the trip now?')) {
+            const finishCoords = await getCurrentGpsPosition().catch(() => ({}));
+            await api.driver.completeTrip(activeTrip.id, finishCoords);
+            alert('Trip completed successfully!');
+            setActiveTrip(null);
+            await loadTodayTrips();
+          }
+        }
+      }
     } catch (err: any) {
       alert(err.message || 'Failed to complete stop delivery. Please try again.');
     } finally {
@@ -697,6 +730,7 @@ const DriverViewInner: React.FC<Props> = ({
                   trip={activeTrip}
                   onViewTripDetails={() => setActiveTab('trip')}
                   onStartTrip={handleStartTrip}
+                  onCompleteTrip={handleCompleteTrip}
                   actionLoading={actionLoading}
                 />
 
