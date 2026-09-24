@@ -28,8 +28,8 @@ const sqlServerConfig: sql.config | null = driver === 'sqlserver' ? {
   password: process.env.DB_PASSWORD || '',
   pool: { max: poolMax, min: 0, idleTimeoutMillis: 30_000 },
   options: {
-    encrypt: process.env.DB_ENCRYPT !== 'false',
-    trustServerCertificate: process.env.DB_TRUST_SERVER_CERTIFICATE === 'true'
+    encrypt: process.env.DB_ENCRYPT === 'true',
+    trustServerCertificate: process.env.DB_TRUST_SERVER_CERTIFICATE !== 'false'
   }
 } : null;
 
@@ -49,7 +49,7 @@ export interface QueryExecutor {
 }
 
 function sqlServerBatch(text: string): string {
-  const tablePrefix = process.env.DB_TABLE_PREFIX || (process.env.DB_NAME === 'test_operation' ? 'FL_' : '');
+  const tablePrefix = process.env.DB_TABLE_PREFIX || (driver === 'sqlserver' ? 'FL_' : '');
   let normalized = text
     .replace(/\bTIMESTAMPTZ\b/g, 'datetime2')
     .replace(/\bDOUBLE PRECISION\b/g, 'float')
@@ -147,7 +147,7 @@ function bindSqlServerParameters(request: sql.Request, text: string, values: unk
 }
 
 export class SqlClient {
-  constructor(private readonly transaction?: sql.Transaction) {}
+  constructor(private readonly transaction?: sql.Transaction) { }
   async query<T extends QueryRow = QueryRow>(text: string, values: unknown[] = []): Promise<QueryResult<T>> {
     const request = this.transaction ? new sql.Request(this.transaction) : new sql.Request(await poolReady as sql.ConnectionPool);
     const result = await request.query<T>(bindSqlServerParameters(request, sqlServerBatch(text), values));

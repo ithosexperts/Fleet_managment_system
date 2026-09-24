@@ -5,6 +5,7 @@ import { query } from '../db';
 import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
 import { uploadPhotoMiddleware, savePhotoRecord, UPLOADS_DIR } from '../services/photoStorage';
 import { PhotoType } from '../types';
+import { hosexpertsSync } from '../services/hosexpertsSync';
 
 const router = Router();
 
@@ -53,7 +54,7 @@ router.post(
       // Always use authoritative server timestamp
       const serverTimestamp = new Date().toISOString();
 
-      const photo = await savePhotoRecord({
+      const photo: any = await savePhotoRecord({
         tripId: trip_id,
         stopId: stop_id || undefined,
         driverId: req.user!.id,
@@ -67,6 +68,23 @@ router.post(
         gpsAccuracy: gps_accuracy ? parseFloat(gps_accuracy) : undefined,
         timestamp: serverTimestamp
       });
+
+      hosexpertsSync.syncPhoto('insert', {
+        id: photo.id,
+        trip_id,
+        stop_id: stop_id || null,
+        driver_id: req.user!.id,
+        vehicle_id: trip.vehicle_id,
+        photo_type,
+        file_path: req.file.filename,
+        file_size: req.file.size,
+        mime_type: req.file.mimetype,
+        timestamp: serverTimestamp,
+        latitude: latitude ? parseFloat(latitude) : null,
+        longitude: longitude ? parseFloat(longitude) : null,
+        gps_accuracy: gps_accuracy ? parseFloat(gps_accuracy) : null,
+        created_at: serverTimestamp
+      }).catch(err => console.error('[HoseXperts Sync] Photo insert sync failed:', err));
 
       return res.status(201).json({
         message: 'Photo uploaded successfully',

@@ -4,6 +4,7 @@ import { query, withTransaction } from '../db';
 import { requireAuth, requireRole, logAudit, AuthenticatedRequest } from '../middleware/auth';
 import { v4 as uuidv4 } from 'uuid';
 import { generateAreaCode } from '../services/areaCode';
+import { hosexpertsSync } from '../services/hosexpertsSync';
 
 const router = Router();
 
@@ -198,6 +199,41 @@ router.post('/vehicles', requireAuth, requireRole('MANAGER'), async (req: Authen
       });
     });
 
+    // Synchronize directly with company SQL Server FL_Vehicles via HoseXperts API
+    hosexpertsSync.syncVehicle('insert', {
+      id,
+      vehicle_number,
+      vehicle_type,
+      model,
+      assigned_driver_id: resolvedDriverUserId,
+      status,
+      notes,
+      fleet_unit_id,
+      chassis_number,
+      telematics_imei,
+      photo_url
+    }).catch(e => console.error('[HoseXperts Sync Error]', e));
+
+    if (Array.isArray(documents)) {
+      for (const d of documents) {
+        if (d.document_number) {
+          hosexpertsSync.syncVehicleDocument('insert', {
+            id: uuidv4(),
+            vehicle_id: id,
+            document_type: toDbDocumentType(d.type || d.document_type),
+            title: d.title || `${d.type || 'RC'} Certificate`,
+            document_number: d.document_number,
+            issue_date: d.issue_date || null,
+            expiry_date: d.expiry_date || '2030-01-01',
+            status: d.status || 'VALID',
+            file_url: d.file_url || null,
+            file_name: d.file_name || null,
+            file_size: d.file_size || null
+          }).catch(e => console.error('[HoseXperts Sync Error]', e));
+        }
+      }
+    }
+
     return res.status(201).json({ message: 'Vehicle created', id });
   } catch (err: any) {
     console.error('[Fleet Error] Failed to create vehicle:', err);
@@ -258,6 +294,19 @@ router.put('/vehicles/:id', requireAuth, requireRole('MANAGER'), async (req: Aut
       await query(`UPDATE drivers SET assigned_vehicle_id = $1 WHERE user_id = $2`, [id, resolvedDriverUserId]);
     }
 
+    hosexpertsSync.syncVehicle('update', {
+      vehicle_number,
+      vehicle_type,
+      model,
+      assigned_driver_id: resolvedDriverUserId,
+      status,
+      notes,
+      fleet_unit_id,
+      chassis_number,
+      telematics_imei,
+      photo_url
+    }, id).catch(e => console.error('[HoseXperts Sync Error]', e));
+
     return res.json({ message: 'Vehicle updated' });
   } catch (err: any) {
     return res.status(400).json({ error: err.message });
@@ -292,6 +341,7 @@ router.delete('/vehicles/:id', requireAuth, requireRole('MANAGER'), async (req: 
   }
 
   await query(`DELETE FROM vehicles WHERE id = $1`, [id]);
+  hosexpertsSync.syncVehicle('delete', {}, id).catch(e => console.error('[HoseXperts Sync Error]', e));
 
   logAudit({
     action: 'VEHICLE_DECOMMISSIONED',
@@ -401,6 +451,27 @@ router.post('/drivers', requireAuth, requireRole('MANAGER'), async (req: Authent
       changedBy: req.user!.id
       });
     });
+
+    hosexpertsSync.syncUser('insert', {
+      id: userId,
+      name,
+      email,
+      password_hash: hash,
+      role: 'DRIVER',
+      phone
+    }).catch(e => console.error('[HoseXperts Sync Error]', e));
+
+    hosexpertsSync.syncDriver('insert', {
+      id: driverId,
+      user_id: userId,
+      employee_id,
+      assigned_vehicle_id,
+      status,
+      avatar_url,
+      license_number,
+      license_category,
+      emergency_phone
+    }).catch(e => console.error('[HoseXperts Sync Error]', e));
 
     return res.status(201).json({ message: 'Driver created successfully', driverId, userId });
   } catch (err: any) {
@@ -559,6 +630,21 @@ router.post('/destinations', requireAuth, requireRole('MANAGER'), async (req: Au
     `, [id, name, address, areaCode, latitude, longitude, contact_name || null, contact_number || null, geofence_radius_meters, notes || null]);
 
     const newDest = (await query(`SELECT * FROM destinations WHERE id = $1`, [id])).rows[0];
+
+    hosexpertsSync.syncDestination('insert', {
+      id,
+      name,
+      address,
+      area_code: areaCode,
+      latitude,
+      longitude,
+      contact_name,
+      contact_number,
+      geofence_radius_meters,
+      notes,
+      is_active: 1
+    }).catch(e => console.error('[HoseXperts Sync Error]', e));
+
     return res.status(201).json({ message: 'Destination created', id, area_code: areaCode, destination: newDest });
   } catch (err: any) {
     return res.status(400).json({ error: err.message });

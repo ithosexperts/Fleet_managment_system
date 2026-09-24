@@ -4,6 +4,7 @@ import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
 import { isWithinGeofence, calculateCumulativeDistanceKm } from '../services/geo';
 import { v4 as uuidv4 } from 'uuid';
 import { Trip, TripStop } from '../types';
+import { hosexpertsSync } from '../services/hosexpertsSync';
 
 const router = Router();
 
@@ -208,6 +209,11 @@ router.post('/trips/:id/start', requireAuth, async (req: AuthenticatedRequest, r
     timestamp: now
   });
 
+  hosexpertsSync.syncTrip('update', {
+    id: tripId,
+    status: 'IN_PROGRESS',
+    actual_start_time: now
+  }).catch(err => console.error('[HoseXperts Sync] Trip start sync failed:', err));
 
   return res.json({ message: 'Trip started successfully', actual_start_time: now, status: 'IN_PROGRESS' });
 });
@@ -294,6 +300,22 @@ router.post('/trips/:id/custom-stop', requireAuth, async (req: AuthenticatedRequ
     });
 
     const createdStop = (await query(`SELECT * FROM trip_stops WHERE id = $1`, [stopId])).rows[0];
+
+    hosexpertsSync.syncTripStop('insert', {
+      id: stopId,
+      trip_id: tripId,
+      stop_number: nextNum,
+      destination_name,
+      address: address || 'Custom Stop Designated by Driver',
+      latitude: latitude || 28.5355,
+      longitude: longitude || 77.268,
+      geofence_radius_meters,
+      planned_arrival_time: planned_arrival_time || '12:00',
+      status: 'PENDING',
+      notes: notes || '[Driver Custom Stop]',
+      created_at: new Date().toISOString()
+    }).catch(err => console.error('[HoseXperts Sync] Custom stop sync failed:', err));
+
     return res.status(201).json({ message: 'Custom stop added successfully', stop: createdStop });
   } catch (err: any) {
     console.error('[Driver Error] Failed to add custom stop:', err);
@@ -390,6 +412,20 @@ router.post('/trips/:id/stops/:stopId/arrive', requireAuth, async (req: Authenti
     timestamp: nowIso
   });
 
+  hosexpertsSync.syncTripStop('update', {
+    id: stopId,
+    status: 'ARRIVED',
+    actual_arrival_time: nowIso,
+    arrival_latitude: latitude ?? null,
+    arrival_longitude: longitude ?? null,
+    arrival_status: arrivalStatus,
+    arrival_diff_minutes: diffMinutes
+  }).catch(err => console.error('[HoseXperts Sync] Stop arrive sync failed:', err));
+
+  hosexpertsSync.syncTrip('update', {
+    id: tripId,
+    status: 'AT_DESTINATION'
+  }).catch(err => console.error('[HoseXperts Sync] Trip status sync failed:', err));
 
   return res.json({
     message: 'Arrival recorded successfully',
@@ -468,6 +504,26 @@ router.post('/trips/:id/stops/:stopId/complete-activity', requireAuth, async (re
     timestamp: now
   });
 
+  hosexpertsSync.syncActivity('insert', {
+    id: activityId,
+    trip_id: tripId,
+    stop_id: stopId,
+    activity_type: activity_type || 'Delivery',
+    status: status || 'COMPLETED',
+    start_time: stop.actual_arrival_time || now,
+    completion_time: now,
+    quantity: quantity ? parseInt(quantity, 10) : null,
+    reference_number: reference_number || null,
+    recipient_name: recipient_name || null,
+    notes: notes || null,
+    created_at: now
+  }).catch(err => console.error('[HoseXperts Sync] Activity sync failed:', err));
+
+  hosexpertsSync.syncTripStop('update', {
+    id: stopId,
+    status: 'IN_PROGRESS'
+  }).catch(err => console.error('[HoseXperts Sync] Stop status sync failed:', err));
+
   return res.json({ message: 'Activity completed successfully', activityId });
 });
 
@@ -522,6 +578,18 @@ router.post('/trips/:id/stops/:stopId/depart', requireAuth, async (req: Authenti
     timestamp: now
   });
 
+  hosexpertsSync.syncTripStop('update', {
+    id: stopId,
+    status: 'COMPLETED',
+    actual_departure_time: now,
+    departure_latitude: latitude ?? null,
+    departure_longitude: longitude ?? null
+  }).catch(err => console.error('[HoseXperts Sync] Stop depart sync failed:', err));
+
+  hosexpertsSync.syncTrip('update', {
+    id: tripId,
+    status: 'IN_PROGRESS'
+  }).catch(err => console.error('[HoseXperts Sync] Trip status sync failed:', err));
 
   return res.json({
     message: 'Departure recorded',
@@ -596,6 +664,27 @@ router.post('/trips/:id/delay', requireAuth, async (req: AuthenticatedRequest, r
     timestamp: now
   });
 
+  hosexpertsSync.syncDelay('insert', {
+    id: delayId,
+    trip_id: tripId,
+    stop_id: stopId || null,
+    driver_id: driverId,
+    vehicle_id: trip.vehicle_id,
+    reason: reason || 'Traffic',
+    description: description || null,
+    start_time: now,
+    latitude: hasGps ? latitude : null,
+    longitude: hasGps ? longitude : null,
+    gps_accuracy: hasGps ? (gps_accuracy ?? null) : null,
+    photo_id: photoId || null,
+    is_resolved: 0,
+    created_at: now
+  }).catch(err => console.error('[HoseXperts Sync] Delay insert sync failed:', err));
+
+  hosexpertsSync.syncTrip('update', {
+    id: tripId,
+    status: 'DELAYED'
+  }).catch(err => console.error('[HoseXperts Sync] Trip delay status sync failed:', err));
 
   return res.json({ message: 'Delay reported', delayId, start_time: now });
 });
@@ -668,6 +757,18 @@ router.post('/trips/:id/delay/:delayId/resolve', requireAuth, async (req: Authen
     timestamp: nowIso
   });
 
+  hosexpertsSync.syncDelay('update', {
+    id: delay.id,
+    end_time: nowIso,
+    duration_minutes: durationMinutes,
+    is_resolved: 1
+  }).catch(err => console.error('[HoseXperts Sync] Delay resolve sync failed:', err));
+
+  hosexpertsSync.syncTrip('update', {
+    id: tripId,
+    total_delay_minutes: totalDelay,
+    status: newStatus
+  }).catch(err => console.error('[HoseXperts Sync] Trip delay resolve status sync failed:', err));
 
   return res.json({
     message: 'Delay resolved',
@@ -739,6 +840,11 @@ router.post('/trips/:id/start-return', requireAuth, async (req: AuthenticatedReq
     timestamp: now
   });
 
+  hosexpertsSync.syncTrip('update', {
+    id: tripId,
+    status: 'RETURNING',
+    return_start_time: now
+  }).catch(err => console.error('[HoseXperts Sync] Trip return sync failed:', err));
 
   return res.json({ message: 'Return journey started', status: 'RETURNING' });
 });
@@ -793,6 +899,10 @@ router.post('/trips/:id/arrive-base', requireAuth, async (req: AuthenticatedRequ
     timestamp: now
   });
 
+  hosexpertsSync.syncTrip('update', {
+    id: tripId,
+    base_arrival_time: now
+  }).catch(err => console.error('[HoseXperts Sync] Trip base arrival sync failed:', err));
 
   return res.json({ message: 'Base arrival recorded', base_arrival_time: now });
 });
@@ -862,6 +972,12 @@ router.post('/trips/:id/complete', requireAuth, async (req: AuthenticatedRequest
     timestamp: now
   });
 
+  hosexpertsSync.syncTrip('update', {
+    id: tripId,
+    status: 'COMPLETED',
+    completion_time: now,
+    calculated_distance_km: calculatedDistance
+  }).catch(err => console.error('[HoseXperts Sync] Trip complete sync failed:', err));
 
   return res.json({
     message: 'Trip completed successfully',

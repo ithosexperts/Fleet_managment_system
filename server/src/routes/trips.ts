@@ -3,6 +3,7 @@ import { query, withTransaction } from '../db';
 import { requireAuth, requireRole, logAudit, AuthenticatedRequest } from '../middleware/auth';
 import { v4 as uuidv4 } from 'uuid';
 import { Trip, TripStop } from '../types';
+import { hosexpertsSync } from '../services/hosexpertsSync';
 
 const router = Router();
 
@@ -249,23 +250,63 @@ router.post('/', requireAuth, requireRole('MANAGER'), async (req: AuthenticatedR
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'PENDING', $11)
     `;
 
+      const createdStops: any[] = [];
       for (const [index, stop] of stops.entries()) {
+        const stopId = uuidv4();
         await client.query(insertStopSql, [
-        uuidv4(),
-        tripId,
-        stop.destination_id || null,
-        index + 1,
-        stop.destination_name || `Destination ${index + 1}`,
-        stop.address || 'Standard Address',
-        stop.latitude || 0,
-        stop.longitude || 0,
-        stop.geofence_radius_meters || 150,
-        stop.planned_arrival_time || planned_departure_time,
-        stop.notes || null
+          stopId,
+          tripId,
+          stop.destination_id || null,
+          index + 1,
+          stop.destination_name || `Destination ${index + 1}`,
+          stop.address || 'Standard Address',
+          stop.latitude || 0,
+          stop.longitude || 0,
+          stop.geofence_radius_meters || 150,
+          stop.planned_arrival_time || planned_departure_time,
+          stop.notes || null
         ]);
+        createdStops.push({
+          id: stopId,
+          trip_id: tripId,
+          destination_id: stop.destination_id || null,
+          stop_number: index + 1,
+          destination_name: stop.destination_name || `Destination ${index + 1}`,
+          address: stop.address || 'Standard Address',
+          latitude: stop.latitude || 0,
+          longitude: stop.longitude || 0,
+          geofence_radius_meters: stop.geofence_radius_meters || 150,
+          planned_arrival_time: stop.planned_arrival_time || planned_departure_time,
+          notes: stop.notes || null,
+          created_at: now
+        });
       }
 
       await client.query(`INSERT INTO audit_logs (id, trip_id, action, new_value, changed_by) VALUES ($1, $2, $3, $4, $5)`, [uuidv4(), tripId, 'TRIP_CREATED', `Trip ${tripId} created with ${stops.length} stops`, userId]);
+
+      // Sync trip & stops with Company SQL Server via HoseXperts API Gateway
+      hosexpertsSync.syncTrip('insert', {
+        id: tripId,
+        date,
+        driver_id,
+        vehicle_id,
+        starting_location,
+        starting_latitude,
+        starting_longitude,
+        purpose,
+        reference_number,
+        planned_departure_time,
+        notes,
+        created_by: userId,
+        created_at: now,
+        sap_shipment_num,
+        erp_delivery_doc,
+        cost_center
+      }).catch(err => console.error('[HoseXperts Sync] Trip insert sync failed:', err));
+
+      for (const s of createdStops) {
+        hosexpertsSync.syncTripStop('insert', s).catch(err => console.error('[HoseXperts Sync] Stop insert sync failed:', err));
+      }
     });
     return res.status(201).json({ message: 'Trip created successfully', tripId });
   } catch (err: any) {
@@ -344,6 +385,18 @@ router.put('/:id', requireAuth, requireRole('MANAGER'), async (req: Authenticate
     tripId
   ]);
 
+  hosexpertsSync.syncTrip('update', {
+    id: tripId,
+    driver_id,
+    vehicle_id,
+    planned_departure_time,
+    purpose,
+    reference_number,
+    notes,
+    sap_shipment_num,
+    erp_delivery_doc,
+    cost_center
+  }).catch(err => console.error('[HoseXperts Sync] Trip update sync failed:', err));
 
   return res.json({ message: 'Trip updated successfully' });
 });
@@ -376,6 +429,7 @@ router.put('/:id/stops/reorder', requireAuth, requireRole('MANAGER'), async (req
         id,
         tripId
         ]);
+        hosexpertsSync.syncTripStop('update', { id, stop_number: index + 1 }).catch(err => console.error('[HoseXperts Sync] Stop reorder sync failed:', err));
       }
 
       await client.query(`INSERT INTO audit_logs (id, trip_id, action, new_value, changed_by) VALUES ($1, $2, $3, $4, $5)`, [uuidv4(), tripId, 'STOPS_REORDERED', `Stops reordered: ${stopIds.join(' -> ')}`, userId]);
@@ -433,6 +487,21 @@ router.post('/:id/stops', requireAuth, requireRole('MANAGER'), async (req: Authe
     changedBy: userId
   });
 
+  hosexpertsSync.syncTripStop('insert', {
+    id: stopId,
+    trip_id: tripId,
+    destination_id: destination_id || null,
+    stop_number: nextStopNumber,
+    destination_name: destination_name || `Destination ${nextStopNumber}`,
+    address: address || 'Company Site',
+    latitude: latitude || 0,
+    longitude: longitude || 0,
+    geofence_radius_meters,
+    planned_arrival_time: planned_arrival_time || trip.planned_departure_time,
+    status: 'PENDING',
+    notes: notes || null,
+    created_at: new Date().toISOString()
+  }).catch(err => console.error('[HoseXperts Sync] Stop add sync failed:', err));
 
   return res.status(201).json({ message: 'Stop added successfully', stopId, stop_number: nextStopNumber });
 });
@@ -488,6 +557,16 @@ router.put('/:id/stops/:stopId', requireAuth, requireRole('MANAGER'), async (req
     reason: 'Manager edited stop details'
   });
 
+  hosexpertsSync.syncTripStop('update', {
+    id: stopId,
+    destination_name,
+    address,
+    latitude,
+    longitude,
+    geofence_radius_meters,
+    planned_arrival_time,
+    notes
+  }).catch(err => console.error('[HoseXperts Sync] Stop update sync failed:', err));
 
   return res.json({ message: 'Stop updated successfully' });
 });
@@ -522,10 +601,14 @@ router.delete('/:id/stops/:stopId', requireAuth, requireRole('MANAGER'), async (
       const remainingStops = (await client.query(`SELECT id FROM trip_stops WHERE trip_id = $1 ORDER BY stop_number ASC`, [tripId])).rows as Array<{ id: string }>;
       for (const [idx, stop] of remainingStops.entries()) {
         await client.query(`UPDATE trip_stops SET stop_number = $1 WHERE id = $2`, [idx + 1, stop.id]);
+        hosexpertsSync.syncTripStop('update', { id: stop.id, stop_number: idx + 1 }).catch(err => console.error('[HoseXperts Sync] Stop renumber sync failed:', err));
       }
 
       await client.query(`INSERT INTO audit_logs (id, trip_id, action, original_value, changed_by) VALUES ($1, $2, $3, $4, $5)`, [uuidv4(), tripId, 'STOP_REMOVED', currentStop.destination_name, userId]);
     });
+
+    hosexpertsSync.syncTripStop('delete', {}, stopId).catch(err => console.error('[HoseXperts Sync] Stop delete sync failed:', err));
+
     return res.json({ message: 'Stop removed successfully' });
   } catch (err: any) {
     console.error('[Trips Error] Failed to remove stop:', err);
@@ -551,6 +634,8 @@ router.post('/:id/cancel', requireAuth, requireRole('MANAGER'), async (req: Auth
     await client.query(`UPDATE drivers SET status = 'AVAILABLE' WHERE user_id = $1`, [trip.driver_id]);
     await client.query(`INSERT INTO audit_logs (id, trip_id, action, changed_by, reason) VALUES ($1, $2, $3, $4, $5)`, [uuidv4(), tripId, 'TRIP_CANCELLED', userId, reason || 'Manager cancelled trip']);
   });
+
+  hosexpertsSync.syncTrip('update', { id: tripId, status: 'CANCELLED' }).catch(err => console.error('[HoseXperts Sync] Trip cancel sync failed:', err));
 
   return res.json({ message: 'Trip cancelled' });
 });

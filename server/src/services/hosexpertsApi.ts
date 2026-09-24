@@ -74,7 +74,7 @@ export class HoseXpertsApiClient {
   private rejectUnauthorized: boolean;
 
   constructor(apiUrl?: string, rejectUnauthorized?: boolean) {
-    this.apiUrl = apiUrl || process.env.HOSEXPERTS_API_URL || process.env.HOSEXPERTS_API_UR || 'https://api.hosexperts.com:81235/apiv2.php';
+    this.apiUrl = apiUrl || process.env.HOSEXPERTS_API_URL || 'https://api.hosexperts.com:85/apiv2.php';
     this.rejectUnauthorized = rejectUnauthorized ?? (process.env.HOSEXPERTS_API_REJECT_UNAUTHORIZED === 'true');
   }
 

@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { hosexpertsApi } from '../services/hosexpertsApi';
+import { hosexpertsSync } from '../services/hosexpertsSync';
 import { requireAuth, requireRole } from '../middleware/auth';
 
 const router = Router();
@@ -12,7 +13,7 @@ router.get('/health', async (_req: Request, res: Response) => {
     const status = await hosexpertsApi.ping();
     res.json({
       service: 'HoseXperts API Gateway',
-      target: process.env.HOSEXPERTS_API_URL || 'https://api.hosexperts.com:81235/apiv2.php',
+      target: process.env.HOSEXPERTS_API_URL || 'https://api.hosexperts.com:85/apiv2.php',
       connected: status.ok,
       details: status
     });
@@ -137,6 +138,22 @@ router.post('/pack2dispatch', requireAuth, requireRole('MANAGER'), async (req: R
   } catch (err: any) {
     console.error('[HoseXperts Pack2Dispatch Error]', err);
     return res.status(500).json({ error: err.message || 'Failed to execute Pack2Dispatch SP' });
+  }
+});
+
+/**
+ * Bulk sync all local operational data to SQL Server via HoseXperts API Gateway
+ */
+router.post('/sync-all', requireAuth, requireRole('MANAGER'), async (_req: Request, res: Response) => {
+  try {
+    const summary = await hosexpertsSync.syncAll();
+    return res.json({
+      message: 'Bulk synchronization completed successfully',
+      summary
+    });
+  } catch (err: any) {
+    console.error('[HoseXperts Bulk Sync Error]', err);
+    return res.status(500).json({ error: err.message || 'Bulk sync failed' });
   }
 });
 
