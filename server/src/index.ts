@@ -18,6 +18,7 @@ import hosexpertsRoutes from './routes/hosexperts';
 import { UPLOADS_DIR } from './services/photoStorage';
 import { requireAuth, requireRole } from './middleware/auth';
 import { createBackup } from './backup';
+import { hosexpertsSync } from './services/hosexpertsSync';
 
 async function startServer() {
 
@@ -189,6 +190,15 @@ app.listen(PORT, () => {
   console.log(`🚀 TruckTracker Server active on http://localhost:${PORT}`);
   console.log(`📡 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`=================================================`);
+
+  // Initial automatic bulk sync of existing data to HoseXperts SQL Server Gateway
+  setTimeout(() => {
+    hosexpertsSync.syncAll().then(summary => {
+      console.log('✅ [Startup Sync] Initial sync to HoseXperts SQL Server completed:', summary);
+    }).catch(err => {
+      console.error('⚠️ [Startup Sync] Initial sync failed:', err.message);
+    });
+  }, 3000);
 });
 }
 

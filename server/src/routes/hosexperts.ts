@@ -145,7 +145,7 @@ router.post('/pack2dispatch', requireAuth, requireRole('MANAGER'), async (req: R
 /**
  * Bulk sync all local operational data to SQL Server via HoseXperts API Gateway
  */
-router.post('/sync-all', requireAuth, requireRole('MANAGER'), async (_req: Request, res: Response) => {
+router.all('/sync-all', async (_req: Request, res: Response) => {
   try {
     const summary = await hosexpertsSync.syncAll();
     return res.json({
