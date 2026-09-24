@@ -74,8 +74,16 @@ export class HoseXpertsApiClient {
   private rejectUnauthorized: boolean;
 
   constructor(apiUrl?: string, rejectUnauthorized?: boolean) {
-    this.apiUrl = apiUrl || process.env.HOSEXPERTS_API_URL || 'https://api.hosexperts.com:85/apiv2.php';
+    let rawUrl = apiUrl || process.env.HOSEXPERTS_API_URL || 'https://api.hosexperts.com:85/apiv2.php';
+    if (rawUrl.includes(':81235')) {
+      rawUrl = rawUrl.replace(':81235', ':85');
+    }
+    this.apiUrl = rawUrl;
     this.rejectUnauthorized = rejectUnauthorized ?? (process.env.HOSEXPERTS_API_REJECT_UNAUTHORIZED === 'true');
+  }
+
+  public getApiUrl(): string {
+    return this.apiUrl;
   }
 
   /**

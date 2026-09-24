@@ -13,13 +13,14 @@ router.get('/health', async (_req: Request, res: Response) => {
     const status = await hosexpertsApi.ping();
     res.json({
       service: 'HoseXperts API Gateway',
-      target: process.env.HOSEXPERTS_API_URL || 'https://api.hosexperts.com:85/apiv2.php',
+      target: hosexpertsApi.getApiUrl(),
       connected: status.ok,
       details: status
     });
   } catch (err: any) {
     res.status(502).json({
       service: 'HoseXperts API Gateway',
+      target: hosexpertsApi.getApiUrl(),
       connected: false,
       error: err.message
     });
