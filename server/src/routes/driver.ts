@@ -58,7 +58,7 @@ async function getAuthorizedTrip(tripId: string, user: { id: string; role: strin
  * Returns the driver's single currently active trip with full stop/event detail.
  * Preferred for fast initial load on Android startup or reconnect after offline period.
  */
-router.get('/trips/active', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+const getActiveTripHandler = async (req: AuthenticatedRequest, res: Response) => {
   const driverId = req.user!.id;
   const isManager = req.user!.role === 'MANAGER';
 
@@ -79,7 +79,7 @@ router.get('/trips/active', requireAuth, async (req: AuthenticatedRequest, res: 
   const trip = (await query(sql, isManager ? [] : [driverId])).rows[0] as any;
 
   if (!trip) {
-    return res.json({ trip: null, message: 'No active trip found' });
+    return res.json({ success: true, data: null, trip: null, message: 'No active trip found' });
   }
 
   trip.stops = (await query(`SELECT * FROM trip_stops WHERE trip_id = $1 ORDER BY stop_number ASC`, [trip.id])).rows;
@@ -91,14 +91,17 @@ router.get('/trips/active', requireAuth, async (req: AuthenticatedRequest, res: 
   trip.events = (await query(`SELECT * FROM trip_events WHERE trip_id = $1 ORDER BY timestamp ASC`, [trip.id])).rows;
   trip.photos = (await query(`SELECT * FROM photos WHERE trip_id = $1 ORDER BY timestamp DESC`, [trip.id])).rows;
 
-  return res.json({ trip });
-});
+  return res.json({ success: true, data: trip, trip });
+};
+
+router.get('/trips/active', requireAuth, getActiveTripHandler);
+router.get('/assigned-trip', requireAuth, getActiveTripHandler);
 
 /**
  * GET /api/driver/trips/today
  * Returns trips assigned to the logged-in driver for today or currently active
  */
-router.get('/trips/today', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+const getTodayTripsHandler = async (req: AuthenticatedRequest, res: Response) => {
   const driverId = req.user!.id;
   const isManager = req.user!.role === 'MANAGER';
   const today = new Date().toISOString().split('T')[0];
@@ -135,8 +138,11 @@ router.get('/trips/today', requireAuth, async (req: AuthenticatedRequest, res: R
     `, [trip.id])).rows;
   }
 
-  return res.json({ trips });
-});
+  return res.json({ success: true, data: trips, trips });
+};
+
+router.get('/trips/today', requireAuth, getTodayTripsHandler);
+router.get('/todays-trips', requireAuth, getTodayTripsHandler);
 
 /**
  * GET /api/driver/trips/:id

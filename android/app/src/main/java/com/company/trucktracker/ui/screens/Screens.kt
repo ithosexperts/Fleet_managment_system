@@ -143,10 +143,12 @@ fun LoginScreen(
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = ChampagneGold,
-                unfocusedBorderColor = CharcoalBorder,
-                focusedTextColor = TextPrimary,
-                unfocusedTextColor = TextPrimary
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                focusedTextColor = MaterialTheme.colorScheme.onBackground,
+                unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
+                focusedLabelColor = MaterialTheme.colorScheme.primary,
+                unfocusedLabelColor = MaterialTheme.colorScheme.secondary
             )
         )
         Spacer(modifier = Modifier.height(16.dp))
@@ -159,10 +161,12 @@ fun LoginScreen(
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = ChampagneGold,
-                unfocusedBorderColor = CharcoalBorder,
-                focusedTextColor = TextPrimary,
-                unfocusedTextColor = TextPrimary
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                focusedTextColor = MaterialTheme.colorScheme.onBackground,
+                unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
+                focusedLabelColor = MaterialTheme.colorScheme.primary,
+                unfocusedLabelColor = MaterialTheme.colorScheme.secondary
             )
         )
         Spacer(modifier = Modifier.height(28.dp))
@@ -195,7 +199,7 @@ fun LoginScreen(
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
-                    Text("API Base URL (HTTPS or LAN)", color = TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    Text("API Base URL (HTTPS or LAN)", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                     Spacer(modifier = Modifier.height(6.dp))
                     OutlinedTextField(
                         value = serverUrlInput,
@@ -203,10 +207,10 @@ fun LoginScreen(
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = ChampagneGold,
+                            focusedBorderColor = HoseXpertsBlueLight,
                             unfocusedBorderColor = CharcoalBorder,
-                            focusedTextColor = TextPrimary,
-                            unfocusedTextColor = TextPrimary
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White
                         )
                     )
                     Spacer(modifier = Modifier.height(8.dp))
