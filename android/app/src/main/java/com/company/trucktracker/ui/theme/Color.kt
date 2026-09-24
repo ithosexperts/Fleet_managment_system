@@ -12,6 +12,12 @@ val HoseXpertsBlue = Color(0xFF1764A8)
 val HoseXpertsBlueLight = Color(0xFF257FD4)
 val HoseXpertsBlueDark = Color(0xFF0E4A80)
 
+// Brand Color Aliases (Replaces legacy gold with authentic HoseXperts Blue)
+val ChampagneGold = HoseXpertsBlue
+val ChampagneGoldLight = HoseXpertsBlueLight
+val ChampagneGoldDark = HoseXpertsBlueDark
+val LightGold = HoseXpertsBlue
+
 val TextPrimary = Color(0xFFF1F5F9)
 val TextSecondary = Color(0xFF94A3B8)
 val TextMuted = Color(0xFF64748B)
