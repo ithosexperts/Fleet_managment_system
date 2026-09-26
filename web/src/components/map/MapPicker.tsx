@@ -51,6 +51,23 @@ export const MapPicker: React.FC<MapPickerProps> = ({
     }
   }, [initialLat, initialLng]);
 
+  // If using default placeholder coordinates, attempt to center on user's real GPS position
+  useEffect(() => {
+    if (initialLat === 28.5355 && initialLng === 77.2680 && typeof navigator !== 'undefined' && 'geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const userCoord = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          handleCoordChange(userCoord);
+          if (mapInstanceRef.current) {
+            mapInstanceRef.current.flyTo({ center: [userCoord.lng, userCoord.lat], zoom: 15, duration: 600 });
+          }
+        },
+        () => {},
+        { timeout: 6000, enableHighAccuracy: true }
+      );
+    }
+  }, []);
+
   // Update geofence circle GeoJSON on map
   const updateGeofenceLayer = useCallback(
     (currentMap: mapboxgl.Map, centerCoord: NormalizedCoord, radMeters: number) => {

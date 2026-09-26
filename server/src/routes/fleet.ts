@@ -97,15 +97,28 @@ router.get('/vehicles', requireAuth, async (req, res) => {
       v.longitude = latestEvent.longitude;
       v.gps_accuracy = latestEvent.gps_accuracy;
       v.last_location_time = latestEvent.timestamp;
-      v.current_location = latestEvent.details || (v.status === 'ON_TRIP' ? 'In Transit' : 'HoseXperts Central Depot');
-      v.speed_kmh = v.status === 'ON_TRIP' ? 44 : 0;
-      v.heading_deg = 45;
+
+      // Clean location string - ensure speed strings are not placed in current_location
+      let locText = (latestEvent.details || '').trim();
+      let extractedSpeed = 0;
+      if (locText) {
+        const speedMatch = locText.match(/(\d+(?:\.\d+)?)\s*km\/h/i);
+        if (speedMatch) {
+          extractedSpeed = parseFloat(speedMatch[1]);
+          locText = locText.replace(/(\d+(?:\.\d+)?)\s*km\/h/i, '').replace(/^[,\s-]+|[,\s-]+$/g, '').trim();
+        }
+      }
+
+      v.current_location = locText || (v.status === 'ON_TRIP' ? 'In Transit' : 'HoseXperts Central Depot');
+      // Only report active speed if vehicle is on an active trip and has real telemetry
+      v.speed_kmh = (v.status === 'ON_TRIP' && v.active_trip_id) ? (extractedSpeed || (latestEvent.speed ? Number(latestEvent.speed) : 0)) : 0;
+      v.heading_deg = (latestEvent.heading ? Number(latestEvent.heading) : 0);
     } else if (v.active_trip_id) {
       if (activeTrip && typeof activeTrip.starting_latitude === 'number' && typeof activeTrip.starting_longitude === 'number') {
         v.latitude = activeTrip.starting_latitude;
         v.longitude = activeTrip.starting_longitude;
         v.current_location = activeTrip.starting_location || 'HoseXperts Central Depot';
-        v.speed_kmh = activeTrip.status === 'IN_PROGRESS' ? 38 : 0;
+        v.speed_kmh = 0;
         v.heading_deg = 0;
       }
     }
@@ -332,25 +345,48 @@ router.delete('/vehicles/:id', requireAuth, requireRole('MANAGER'), async (req: 
   const vehicle = (await query(`SELECT * FROM vehicles WHERE id = $1`, [id])).rows[0] as any;
   if (!vehicle) return res.status(404).json({ error: 'Vehicle not found' });
 
-  // Disallow delete if any delivery trips exist
-  const tripCount = Number((await query<{ count: string }>(`SELECT COUNT(*)::text as count FROM trips WHERE vehicle_id = $1`, [id])).rows[0].count);
-  if (tripCount > 0) {
-    return res.status(409).json({
-      error: `Cannot delete vehicle: ${tripCount} delivery trip(s) have been completed or scheduled for vehicle ${vehicle.vehicle_number}. Deletion is disabled to protect delivery history. Only editing is permitted.`
+  try {
+    await withTransaction(async (client) => {
+      // 1. Unassign from any drivers
+      await client.query(`UPDATE drivers SET assigned_vehicle_id = NULL WHERE assigned_vehicle_id = $1`, [id]);
+
+      // 2. Delete vehicle compliance documents and challans
+      await client.query(`DELETE FROM vehicle_documents WHERE vehicle_id = $1`, [id]);
+      await client.query(`DELETE FROM vehicle_challans WHERE vehicle_id = $1`, [id]);
+
+      // 3. Find and cascade delete any trips recorded for this vehicle
+      const tripRows = (await client.query(`SELECT id FROM trips WHERE vehicle_id = $1`, [id])).rows as any[];
+      for (const t of tripRows) {
+        await client.query(`DELETE FROM activities WHERE trip_id = $1`, [t.id]);
+        await client.query(`DELETE FROM photos WHERE trip_id = $1`, [t.id]);
+        await client.query(`DELETE FROM delays WHERE trip_id = $1`, [t.id]);
+        await client.query(`DELETE FROM trip_events WHERE trip_id = $1`, [t.id]);
+        await client.query(`DELETE FROM trip_telemetry WHERE trip_id = $1`, [t.id]).catch(() => {});
+        await client.query(`DELETE FROM trip_stops WHERE trip_id = $1`, [t.id]);
+        await client.query(`DELETE FROM trips WHERE id = $1`, [t.id]);
+      }
+
+      // 4. Delete any remaining trip events referencing this vehicle
+      await client.query(`DELETE FROM trip_events WHERE vehicle_id = $1`, [id]);
+
+      // 5. Delete vehicle asset
+      await client.query(`DELETE FROM vehicles WHERE id = $1`, [id]);
     });
+
+    hosexpertsSync.syncVehicle('delete', {}, id).catch(e => console.error('[HoseXperts Sync Error]', e));
+
+    logAudit({
+      action: 'VEHICLE_DECOMMISSIONED',
+      originalValue: vehicle.vehicle_number,
+      changedBy: req.user!.id,
+      reason: `Vehicle ${vehicle.vehicle_number} deleted by manager`
+    });
+
+    return res.json({ message: `Vehicle ${vehicle.vehicle_number} has been deleted.` });
+  } catch (err: any) {
+    console.error('[Delete Vehicle Error]', err);
+    return res.status(400).json({ error: err.message || 'Failed to delete vehicle' });
   }
-
-  await query(`DELETE FROM vehicles WHERE id = $1`, [id]);
-  hosexpertsSync.syncVehicle('delete', {}, id).catch(e => console.error('[HoseXperts Sync Error]', e));
-
-  logAudit({
-    action: 'VEHICLE_DECOMMISSIONED',
-    originalValue: vehicle.vehicle_number,
-    changedBy: req.user!.id,
-    reason: `Vehicle ${vehicle.vehicle_number} deleted by manager`
-  });
-
-  return res.json({ message: `Vehicle ${vehicle.vehicle_number} has been deleted.` });
 });
 
 // ==========================================
@@ -557,30 +593,112 @@ router.delete('/drivers/:id', requireAuth, requireRole('MANAGER'), async (req: A
   const driver = (await query(`SELECT d.*, u.name FROM drivers d JOIN users u ON d.user_id = u.id WHERE d.id = $1`, [id])).rows[0] as any;
   if (!driver) return res.status(404).json({ error: 'Driver not found' });
 
-  // Disallow delete if any delivery trips exist
-  const tripCount = Number((await query<{ count: string }>(`SELECT COUNT(*)::text as count FROM trips WHERE driver_id = $1`, [driver.user_id])).rows[0].count);
-  if (tripCount > 0) {
-    return res.status(409).json({
-      error: `Cannot delete driver: ${tripCount} delivery trip(s) are recorded for driver ${driver.name}. Deletion is disabled to protect delivery history. Only editing is permitted.`
-    });
-  }
-
   try {
     await withTransaction(async (client) => {
+      // 1. Unassign from any vehicles
       await client.query(`UPDATE vehicles SET assigned_driver_id = NULL WHERE assigned_driver_id = $1`, [driver.user_id]);
+
+      // 2. Delete driver compliance documents
       await client.query(`DELETE FROM driver_documents WHERE driver_id = $1`, [id]);
+
+      // 3. Find and cascade delete any trips for this driver
+      const tripRows = (await client.query(`SELECT id FROM trips WHERE driver_id = $1`, [driver.user_id])).rows as any[];
+      for (const t of tripRows) {
+        await client.query(`DELETE FROM activities WHERE trip_id = $1`, [t.id]);
+        await client.query(`DELETE FROM photos WHERE trip_id = $1`, [t.id]);
+        await client.query(`DELETE FROM delays WHERE trip_id = $1`, [t.id]);
+        await client.query(`DELETE FROM trip_events WHERE trip_id = $1`, [t.id]);
+        await client.query(`DELETE FROM trip_telemetry WHERE trip_id = $1`, [t.id]).catch(() => {});
+        await client.query(`DELETE FROM trip_stops WHERE trip_id = $1`, [t.id]);
+        await client.query(`DELETE FROM trips WHERE id = $1`, [t.id]);
+      }
+
+      // 4. Delete any remaining trip events referencing this driver
+      await client.query(`DELETE FROM trip_events WHERE driver_id = $1`, [driver.user_id]);
+
+      // 5. Delete driver profile and user account
       await client.query(`DELETE FROM drivers WHERE id = $1`, [id]);
       await client.query(`DELETE FROM users WHERE id = $1`, [driver.user_id]);
     });
+
     await logAudit({
       action: 'DRIVER_DECOMMISSIONED',
       originalValue: driver.name,
       changedBy: req.user!.id,
       reason: `Driver ${driver.name} (${driver.employee_id}) deleted by manager`
     });
+
     return res.json({ message: `Driver ${driver.name} has been deleted.` });
   } catch (err: any) {
-    return res.status(400).json({ error: err.message });
+    console.error('[Delete Driver Error]', err);
+    return res.status(400).json({ error: err.message || 'Failed to delete driver' });
+  }
+});
+
+// ==========================================
+// DUMMY / SIMULATION CLEANUP
+// ==========================================
+router.post('/cleanup-dummy-data', requireAuth, requireRole('MANAGER'), async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { purgeDummyAssets = false } = req.body || {};
+
+    await withTransaction(async (client) => {
+      // 1. Delete all test / demo trips
+      const demoTrips = (await client.query(`
+        SELECT id FROM trips WHERE id LIKE '%TR-2026%' OR id LIKE '%TEST%' OR id LIKE '%DEMO%'
+      `)).rows as any[];
+
+      for (const dt of demoTrips) {
+        await client.query(`DELETE FROM activities WHERE trip_id = $1`, [dt.id]);
+        await client.query(`DELETE FROM photos WHERE trip_id = $1`, [dt.id]);
+        await client.query(`DELETE FROM delays WHERE trip_id = $1`, [dt.id]);
+        await client.query(`DELETE FROM trip_events WHERE trip_id = $1`, [dt.id]);
+        await client.query(`DELETE FROM trip_telemetry WHERE trip_id = $1`, [dt.id]).catch(() => {});
+        await client.query(`DELETE FROM trip_stops WHERE trip_id = $1`, [dt.id]);
+        await client.query(`DELETE FROM trips WHERE id = $1`, [dt.id]);
+      }
+
+      // 2. Clear any lingering simulated trip events
+      await client.query(`DELETE FROM trip_events WHERE details LIKE '%km/h%' OR details LIKE '%Okhla Central Hub%'`);
+
+      // 3. Reset vehicle and driver statuses to AVAILABLE
+      await client.query(`
+        UPDATE vehicles SET status = 'AVAILABLE'
+        WHERE status = 'ON_TRIP' AND id NOT IN (
+          SELECT vehicle_id FROM trips WHERE status IN ('IN_PROGRESS', 'RETURNING')
+        )
+      `);
+      await client.query(`
+        UPDATE drivers SET status = 'AVAILABLE'
+        WHERE status = 'ON_TRIP' AND user_id NOT IN (
+          SELECT driver_id FROM trips WHERE status IN ('IN_PROGRESS', 'RETURNING')
+        )
+      `);
+
+      // 4. Optionally purge dummy vehicles/drivers if requested
+      if (purgeDummyAssets) {
+        const dummyVehicles = (await client.query(`SELECT id FROM vehicles WHERE UPPER(vehicle_number) LIKE '%20258%' OR UPPER(model) LIKE '%TATTA%'`)).rows as any[];
+        for (const dv of dummyVehicles) {
+          await client.query(`UPDATE drivers SET assigned_vehicle_id = NULL WHERE assigned_vehicle_id = $1`, [dv.id]);
+          await client.query(`DELETE FROM vehicle_documents WHERE vehicle_id = $1`, [dv.id]);
+          await client.query(`DELETE FROM vehicle_challans WHERE vehicle_id = $1`, [dv.id]);
+          await client.query(`DELETE FROM trip_events WHERE vehicle_id = $1`, [dv.id]);
+          await client.query(`DELETE FROM vehicles WHERE id = $1`, [dv.id]);
+        }
+      }
+    });
+
+    await logAudit({
+      action: 'DUMMY_DATA_PURGED',
+      originalValue: 'Test & Simulated Records',
+      changedBy: req.user!.id,
+      reason: 'Manager initiated purge of dummy telematics, test trips, and simulated statuses'
+    });
+
+    return res.json({ message: 'Dummy data, fake telematics, and test records successfully cleared.' });
+  } catch (err: any) {
+    console.error('[Cleanup Error]', err);
+    return res.status(400).json({ error: err.message || 'Failed to cleanup dummy data' });
   }
 });
 

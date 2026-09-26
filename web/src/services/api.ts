@@ -427,6 +427,12 @@ export const api = {
     updateDriverDocument: async (driverId: string, doc: any) => {
       return await request(`/fleet/drivers/${driverId}/documents`, { method: 'POST', body: JSON.stringify(doc) });
     },
+    cleanupDummyData: async (purgeDummyAssets: boolean = false) => {
+      return await request('/fleet/cleanup-dummy-data', {
+        method: 'POST',
+        body: JSON.stringify({ purgeDummyAssets })
+      });
+    },
     getExceptions: async (params: { status?: string; severity?: string; limit?: number } = {}) => {
       try {
         const qs = new URLSearchParams(params as any).toString();

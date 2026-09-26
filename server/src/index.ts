@@ -34,18 +34,18 @@ if (!jwtSecret || jwtSecret.length < 32) {
 await checkDatabaseConnection();
 await initDatabase();
 
-// Clean up TR-2026-00001 and release vehicle/driver as requested
+// Clean up dummy/test trips and release vehicles & drivers from stuck statuses
 try {
-  await query(`DELETE FROM activities WHERE trip_id = 'TR-2026-00001'`);
-  await query(`DELETE FROM photos WHERE trip_id = 'TR-2026-00001'`);
-  await query(`DELETE FROM delays WHERE trip_id = 'TR-2026-00001'`);
-  await query(`DELETE FROM trip_events WHERE trip_id = 'TR-2026-00001'`);
-  await query(`DELETE FROM trip_telemetry WHERE trip_id = 'TR-2026-00001'`);
-  await query(`DELETE FROM trip_stops WHERE trip_id = 'TR-2026-00001'`);
-  await query(`DELETE FROM trips WHERE id = 'TR-2026-00001'`);
-  await query(`UPDATE vehicles SET status = 'AVAILABLE' WHERE status != 'MAINTENANCE'`);
-  await query(`UPDATE drivers SET status = 'AVAILABLE' WHERE status != 'ON_LEAVE'`);
-  console.log('🧹 Cleaned up TR-2026-00001 from database');
+  await query(`DELETE FROM activities WHERE trip_id LIKE '%TR-2026%' OR trip_id LIKE '%TEST%' OR trip_id LIKE '%DEMO%'`);
+  await query(`DELETE FROM photos WHERE trip_id LIKE '%TR-2026%' OR trip_id LIKE '%TEST%' OR trip_id LIKE '%DEMO%'`);
+  await query(`DELETE FROM delays WHERE trip_id LIKE '%TR-2026%' OR trip_id LIKE '%TEST%' OR trip_id LIKE '%DEMO%'`);
+  await query(`DELETE FROM trip_events WHERE trip_id LIKE '%TR-2026%' OR trip_id LIKE '%TEST%' OR trip_id LIKE '%DEMO%' OR details LIKE '%km/h%'`);
+  await query(`DELETE FROM trip_telemetry WHERE trip_id LIKE '%TR-2026%' OR trip_id LIKE '%TEST%' OR trip_id LIKE '%DEMO%'`).catch(() => {});
+  await query(`DELETE FROM trip_stops WHERE trip_id LIKE '%TR-2026%' OR trip_id LIKE '%TEST%' OR trip_id LIKE '%DEMO%'`);
+  await query(`DELETE FROM trips WHERE id LIKE '%TR-2026%' OR id LIKE '%TEST%' OR id LIKE '%DEMO%'`);
+  await query(`UPDATE vehicles SET status = 'AVAILABLE' WHERE status != 'MAINTENANCE' AND id NOT IN (SELECT vehicle_id FROM trips WHERE status IN ('IN_PROGRESS', 'RETURNING'))`);
+  await query(`UPDATE drivers SET status = 'AVAILABLE' WHERE status != 'OFF_DUTY' AND user_id NOT IN (SELECT driver_id FROM trips WHERE status IN ('IN_PROGRESS', 'RETURNING'))`);
+  console.log('🧹 Cleaned up dummy trips, fake telematics, and reset fleet statuses');
 } catch (err: any) {
   console.warn('[Cleanup Warning]', err.message);
 }

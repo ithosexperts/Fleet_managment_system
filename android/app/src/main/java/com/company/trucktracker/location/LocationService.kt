@@ -25,7 +25,9 @@ sealed class LocationResult {
         val latitude: Double,
         val longitude: Double,
         val accuracyMeters: Float,
-        val isAccuracyPoor: Boolean // true if accuracy > 300m
+        val isAccuracyPoor: Boolean, // true if accuracy > 300m
+        val speedKmh: Float = 0f,
+        val bearingDeg: Float = 0f
     ) : LocationResult()
 
     data class Unavailable(val reason: String) : LocationResult()
@@ -57,7 +59,9 @@ class LocationService(private val context: Context) {
                     latitude = location.latitude,
                     longitude = location.longitude,
                     accuracyMeters = location.accuracy,
-                    isAccuracyPoor = location.accuracy > 300f
+                    isAccuracyPoor = location.accuracy > 300f,
+                    speedKmh = if (location.hasSpeed()) location.speed * 3.6f else 0f,
+                    bearingDeg = if (location.hasBearing()) location.bearing else 0f
                 )
             } else {
                 // Fallback to last known location if immediate fix is unavailable
@@ -67,7 +71,9 @@ class LocationService(private val context: Context) {
                         latitude = lastLocation.latitude,
                         longitude = lastLocation.longitude,
                         accuracyMeters = lastLocation.accuracy,
-                        isAccuracyPoor = lastLocation.accuracy > 300f
+                        isAccuracyPoor = lastLocation.accuracy > 300f,
+                        speedKmh = if (lastLocation.hasSpeed()) lastLocation.speed * 3.6f else 0f,
+                        bearingDeg = if (lastLocation.hasBearing()) lastLocation.bearing else 0f
                     )
                 } else {
                     // Fallback to HoseXperts Delhi Depot coordinates when fused location is null (ensures emulator/indoor resilience)

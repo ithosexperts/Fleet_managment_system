@@ -141,7 +141,7 @@ export const ManagerView: React.FC<Props> = ({
   const [telematicsFilter, setTelematicsFilter] = useState<'ALL' | 'MOVING' | 'IDLE'>('ALL');
   const [selectedVehicleForMap, setSelectedVehicleForMap] = useState<Vehicle | null>(null);
   const [focusedMapLocation, setFocusedMapLocation] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [isSimulatingFleet, setIsSimulatingFleet] = useState(true);
+  const [isSimulatingFleet, setIsSimulatingFleet] = useState(false);
 
   // Fleet state
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -174,50 +174,21 @@ export const ManagerView: React.FC<Props> = ({
     return () => clearInterval(interval);
   }, [liveRefresh, activeSection, selectedDate, statusFilter.join(','), searchQuery, reportsPeriod]);
 
-  // Live Vehicle Telematics Simulation (Ola / Rapido style real-time movements)
-  // Tab-guarded to only run when actively viewing map or overview, eliminating background re-renders and blinking
-  useEffect(() => {
-    if (!isSimulatingFleet || !['overview', 'map'].includes(activeSection)) return;
-
-    const interval = setInterval(() => {
-      setVehicles((prevVehicles) =>
-        prevVehicles.map((v) => {
-          if (!v.latitude || !v.longitude) return v;
-          const isMoving = (v.speed_kmh || 0) > 0 || v.status === 'ON_TRIP';
-          if (!isMoving) return v;
-
-          const headingRad = ((v.heading_deg || 45) * Math.PI) / 180;
-          const deltaLat = Math.cos(headingRad) * 0.00035 + (Math.random() - 0.5) * 0.00008;
-          const deltaLng = Math.sin(headingRad) * 0.00035 + (Math.random() - 0.5) * 0.00008;
-          const speedFluc = Math.max(18, Math.min(85, (v.speed_kmh || 42) + (Math.random() * 4 - 2)));
-
-          return {
-            ...v,
-            latitude: v.latitude + deltaLat,
-            longitude: v.longitude + deltaLng,
-            speed_kmh: speedFluc,
-            last_ping: new Date().toISOString()
-          };
-        })
-      );
-    }, 3000);
-
-    return () => clearInterval(interval);
-  }, [isSimulatingFleet, activeSection]);
-
   // Manager Fleet Deletion & Decommissioning Handlers
   const handleDeleteVehicle = async (vehicle: Vehicle) => {
     const hasTrips = (vehicle.total_trips || 0) > 0 || trips.some((t) => t.vehicle_id === vehicle.id || t.vehicle_number === vehicle.vehicle_number);
-    if (hasTrips) {
-      alert(`Cannot delete vehicle ${vehicle.vehicle_number}: Completed or active trips/deliveries are recorded for this vehicle. Deletion is disabled to protect delivery history. Only editing is permitted.`);
-      return;
-    }
-    if (!window.confirm(`Are you sure you want to delete vehicle ${vehicle.vehicle_number}?`)) {
+    const confirmPrompt = hasTrips
+      ? `Permanently delete vehicle ${vehicle.vehicle_number}?\n\nWarning: This vehicle has ${vehicle.total_trips || 1} recorded delivery trip(s). Proceeding will permanently delete this vehicle, its compliance documents, and associated trip logs.`
+      : `Are you sure you want to permanently delete vehicle ${vehicle.vehicle_number}?`;
+
+    if (!window.confirm(confirmPrompt)) {
       return;
     }
     try {
       await api.fleet.deleteVehicle(vehicle.id);
       setVehicles((prev) => prev.filter((v) => v.id !== vehicle.id));
+      alert(`Vehicle ${vehicle.vehicle_number} has been deleted successfully.`);
+      silentRealtimeSync();
     } catch (err: any) {
       alert(err.message || 'Failed to delete vehicle');
     }
@@ -225,18 +196,34 @@ export const ManagerView: React.FC<Props> = ({
 
   const handleDeleteDriver = async (driver: Driver) => {
     const hasTrips = (driver.total_trips || 0) > 0 || trips.some((t) => t.driver_id === driver.user_id || t.driver_id === driver.id || t.driver_name === driver.name);
-    if (hasTrips) {
-      alert(`Cannot delete driver ${driver.name}: Completed or active trips/deliveries are recorded for this driver. Deletion is disabled to protect delivery history. Only editing is permitted.`);
-      return;
-    }
-    if (!window.confirm(`Are you sure you want to remove driver ${driver.name} from the roster?`)) {
+    const confirmPrompt = hasTrips
+      ? `Permanently remove driver ${driver.name} from the roster?\n\nWarning: This driver has ${driver.total_trips || 1} recorded delivery trip(s). Proceeding will permanently remove this driver, credentials, and associated trip logs.`
+      : `Are you sure you want to remove driver ${driver.name} from the roster?`;
+
+    if (!window.confirm(confirmPrompt)) {
       return;
     }
     try {
       await api.fleet.deleteDriver(driver.id);
       setDrivers((prev) => prev.filter((d) => d.id !== driver.id));
+      alert(`Driver ${driver.name} has been removed successfully.`);
+      silentRealtimeSync();
     } catch (err: any) {
       alert(err.message || 'Failed to delete driver');
+    }
+  };
+
+  const handleCleanupDummyData = async (purgeAssets = false) => {
+    const prompt = purgeAssets
+      ? 'Clean all dummy/test data AND permanently remove dummy vehicles/drivers (e.g. DL 01 AB 20258, Vikaram)?'
+      : 'Clean all test/simulated trips, fake telematics, and reset fleet units to AVAILABLE?';
+    if (!window.confirm(prompt)) return;
+    try {
+      const res = await api.fleet.cleanupDummyData(purgeAssets);
+      alert(res.message || 'Dummy data successfully cleaned up.');
+      await loadDashboardData();
+    } catch (err: any) {
+      alert(err.message || 'Failed to clean dummy data');
     }
   };
 
@@ -1828,7 +1815,7 @@ export const ManagerView: React.FC<Props> = ({
                           <span>🧭 {Math.round(v.heading_deg || 0)}&deg; Heading</span>
                         </div>
 
-                        {v.current_location && (
+                        {v.current_location && !v.current_location.includes('km/h') && (
                           <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                             📍 {v.current_location}
                           </div>
@@ -1912,20 +1899,36 @@ export const ManagerView: React.FC<Props> = ({
             onRefresh={handleManualRefresh}
             refreshing={refreshing}
             actions={
-              <button
-                type="button"
-                className="btn btn-primary btn-sm"
-                onClick={() => setIsVehicleModalOpen(true)}
-                style={{
-                  backgroundColor: 'var(--accent-whatsapp)',
-                  borderColor: 'var(--accent-whatsapp)',
-                  color: '#0b141a',
-                  fontWeight: 600
-                }}
-              >
-                <Plus size={14} />
-                <span>Register Vehicle</span>
-              </button>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => handleCleanupDummyData(false)}
+                  style={{
+                    color: 'var(--status-danger)',
+                    borderColor: 'var(--status-danger-border)',
+                    fontSize: '0.78rem'
+                  }}
+                  title="Clean all dummy/test trips and reset vehicle statuses"
+                >
+                  <Trash2 size={13} />
+                  <span>Clean Dummy Trips</span>
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  onClick={() => setIsVehicleModalOpen(true)}
+                  style={{
+                    backgroundColor: 'var(--accent-whatsapp)',
+                    borderColor: 'var(--accent-whatsapp)',
+                    color: '#0b141a',
+                    fontWeight: 600
+                  }}
+                >
+                  <Plus size={14} />
+                  <span>Register Vehicle</span>
+                </button>
+              </div>
             }
           />
 
@@ -2158,20 +2161,19 @@ export const ManagerView: React.FC<Props> = ({
                         <Edit3 size={12} />
                         <span>Edit</span>
                       </button>
-                      {!hasTrips && (
-                        <button
-                          type="button"
-                          className="btn btn-secondary btn-sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteVehicle(v);
-                          }}
-                          style={{ padding: '4px 8px', fontSize: '0.75rem', color: 'var(--status-danger)', borderColor: 'var(--status-danger-border)' }}
-                          title="Decommission Vehicle"
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteVehicle(v);
+                        }}
+                        style={{ padding: '4px 8px', fontSize: '0.75rem', color: 'var(--status-danger)', borderColor: 'var(--status-danger-border)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                        title="Delete Vehicle Asset"
+                      >
+                        <Trash2 size={12} />
+                        <span>Delete</span>
+                      </button>
                     </div>
                   );
                 }
@@ -2211,20 +2213,36 @@ export const ManagerView: React.FC<Props> = ({
             onRefresh={handleManualRefresh}
             refreshing={refreshing}
             actions={
-              <button
-                type="button"
-                className="btn btn-primary btn-sm"
-                onClick={() => setIsDriverModalOpen(true)}
-                style={{
-                  backgroundColor: 'var(--accent-whatsapp)',
-                  borderColor: 'var(--accent-whatsapp)',
-                  color: '#0b141a',
-                  fontWeight: 600
-                }}
-              >
-                <Plus size={14} />
-                <span>Register Driver</span>
-              </button>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => handleCleanupDummyData(false)}
+                  style={{
+                    color: 'var(--status-danger)',
+                    borderColor: 'var(--status-danger-border)',
+                    fontSize: '0.78rem'
+                  }}
+                  title="Clean all dummy/test trips and reset driver statuses"
+                >
+                  <Trash2 size={13} />
+                  <span>Clean Dummy Trips</span>
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  onClick={() => setIsDriverModalOpen(true)}
+                  style={{
+                    backgroundColor: 'var(--accent-whatsapp)',
+                    borderColor: 'var(--accent-whatsapp)',
+                    color: '#0b141a',
+                    fontWeight: 600
+                  }}
+                >
+                  <Plus size={14} />
+                  <span>Register Driver</span>
+                </button>
+              </div>
             }
           />
 
@@ -2462,20 +2480,19 @@ export const ManagerView: React.FC<Props> = ({
                         <Edit3 size={12} />
                         <span>Edit</span>
                       </button>
-                      {!hasTrips && (
-                        <button
-                          type="button"
-                          className="btn btn-secondary btn-sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteDriver(d);
-                          }}
-                          style={{ padding: '4px 8px', fontSize: '0.75rem', color: 'var(--status-danger)', borderColor: 'var(--status-danger-border)' }}
-                          title="Remove Driver"
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteDriver(d);
+                        }}
+                        style={{ padding: '4px 8px', fontSize: '0.75rem', color: 'var(--status-danger)', borderColor: 'var(--status-danger-border)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                        title="Remove Driver from Roster"
+                      >
+                        <Trash2 size={12} />
+                        <span>Delete</span>
+                      </button>
                     </div>
                   );
                 }

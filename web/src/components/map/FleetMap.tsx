@@ -86,7 +86,7 @@ export const FleetMap: React.FC<FleetMapProps> = ({
   const [isSimulating, setIsSimulating] = useState(false);
   const [simProgress, setSimProgress] = useState(0); // 0 to 1
   const [simSpeed, setSimSpeed] = useState<1 | 2 | 4>(1);
-  const [simSpeedKmh, setSimSpeedKmh] = useState(42);
+  const [simSpeedKmh, setSimSpeedKmh] = useState(0);
   const [followVehicle, setFollowVehicle] = useState(false);
   const [showWaypoints, setShowWaypoints] = useState(false);
   const [showHud, setShowHud] = useState(true);
@@ -130,6 +130,12 @@ export const FleetMap: React.FC<FleetMapProps> = ({
   // Dynamic Map Basemap Style (Default: streets)
   const initialThemeMap: MapTheme = theme === 'dark' ? 'dark' : theme === 'satellite' ? 'satellite' : 'streets';
   const [currentTheme, setCurrentTheme] = useState<MapTheme>(initialThemeMap);
+
+  useEffect(() => {
+    if (theme) {
+      setCurrentTheme(theme === 'dark' ? 'dark' : theme === 'satellite' ? 'satellite' : 'streets');
+    }
+  }, [theme]);
 
   // Normalized Base Coordinate
   const baseCoord = useMemo<NormalizedCoord | null>(() => {
@@ -184,7 +190,7 @@ export const FleetMap: React.FC<FleetMapProps> = ({
         depotIndex++;
       }
 
-      const speedVal = (v as any).speed_kmh ?? ((v as any).status === 'ON_TRIP' ? 43 : 0);
+      const speedVal = (v as any).speed_kmh || 0;
 
       return {
         id: v.id,

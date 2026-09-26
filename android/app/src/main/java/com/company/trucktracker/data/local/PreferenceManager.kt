@@ -52,7 +52,11 @@ class PreferenceManager(context: Context) {
     }
 
     fun getBaseUrl(): String {
-        return prefs.getString(KEY_BASE_URL, DEFAULT_BASE_URL) ?: DEFAULT_BASE_URL
+        val stored = prefs.getString(KEY_BASE_URL, null)
+        if (stored.isNullOrBlank() || stored.contains("10.0.2.2") || stored.contains("192.168.") || stored.contains("localhost")) {
+            return DEFAULT_BASE_URL
+        }
+        return stored
     }
 
     fun isDarkTheme(): Boolean {
@@ -72,11 +76,7 @@ class PreferenceManager(context: Context) {
         private const val KEY_USER = "user_profile"
         private const val KEY_BASE_URL = "base_url"
         private const val KEY_DARK_THEME = "dark_theme"
-        // Default to local machine emulator in debug, and cloud backend in release
-        val DEFAULT_BASE_URL = if (com.company.trucktracker.BuildConfig.DEBUG) {
-            "http://10.0.2.2:5000/"
-        } else {
-            "https://fleet-managment-system-638o.onrender.com/"
-        }
+        // Permanent production cloud backend on Render
+        const val DEFAULT_BASE_URL = "https://fleet-managment-system-638o.onrender.com/"
     }
 }
