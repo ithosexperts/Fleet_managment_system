@@ -52,6 +52,25 @@ export const MapControls: React.FC<MapControlsProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showLayerMenu]);
 
+  const [bearing, setBearing] = useState(0);
+  const [pitch, setPitch] = useState(0);
+
+  // Track map rotation & pitch in real time
+  useEffect(() => {
+    if (!map) return;
+    const updateOrientation = () => {
+      setBearing(Math.round(map.getBearing()));
+      setPitch(Math.round(map.getPitch()));
+    };
+    updateOrientation();
+    map.on('rotate', updateOrientation);
+    map.on('pitch', updateOrientation);
+    return () => {
+      map.off('rotate', updateOrientation);
+      map.off('pitch', updateOrientation);
+    };
+  }, [map]);
+
   const handleZoomIn = () => {
     if (map) map.zoomIn({ duration: 300 });
   };
@@ -61,7 +80,14 @@ export const MapControls: React.FC<MapControlsProps> = ({
   };
 
   const handleResetNorth = () => {
-    if (map) map.resetNorthPitch({ duration: 400 });
+    if (!map) return;
+    if (Math.abs(bearing) > 0.5 || pitch > 0.5) {
+      map.easeTo({ bearing: 0, pitch: 0, duration: 600 });
+    } else {
+      // If already facing north, cycle pitch to toggle 3D tilt perspective
+      const targetPitch = map.getPitch() < 20 ? 55 : 0;
+      map.easeTo({ pitch: targetPitch, bearing: 0, duration: 600 });
+    }
   };
 
   const handleLocateMe = () => {
@@ -302,7 +328,7 @@ export const MapControls: React.FC<MapControlsProps> = ({
         <button
           type="button"
           onClick={handleResetNorth}
-          title="Reset Bearing (North)"
+          title={bearing !== 0 ? `Reset to True North (Current: ${bearing}°)` : 'Toggle 3D View / North Lock'}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -311,12 +337,23 @@ export const MapControls: React.FC<MapControlsProps> = ({
             height: '34px',
             borderRadius: '8px',
             border: 'none',
-            backgroundColor: 'transparent',
-            color: '#cbd5e1',
-            cursor: 'pointer'
+            backgroundColor: bearing !== 0 ? 'rgba(0, 229, 255, 0.15)' : 'transparent',
+            color: bearing !== 0 ? '#00e5ff' : '#cbd5e1',
+            cursor: 'pointer',
+            transition: 'background-color 0.2s, color 0.2s'
           }}
         >
-          <Compass size={16} />
+          <div
+            style={{
+              transform: `rotate(${-bearing}deg)`,
+              transition: 'transform 0.15s ease-out',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            <Compass size={17} />
+          </div>
         </button>
 
         {/* Recenter */}
