@@ -1899,36 +1899,20 @@ export const ManagerView: React.FC<Props> = ({
             onRefresh={handleManualRefresh}
             refreshing={refreshing}
             actions={
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => handleCleanupDummyData(false)}
-                  style={{
-                    color: 'var(--status-danger)',
-                    borderColor: 'var(--status-danger-border)',
-                    fontSize: '0.78rem'
-                  }}
-                  title="Clean all dummy/test trips and reset vehicle statuses"
-                >
-                  <Trash2 size={13} />
-                  <span>Clean Dummy Trips</span>
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-primary btn-sm"
-                  onClick={() => setIsVehicleModalOpen(true)}
-                  style={{
-                    backgroundColor: 'var(--accent-whatsapp)',
-                    borderColor: 'var(--accent-whatsapp)',
-                    color: '#0b141a',
-                    fontWeight: 600
-                  }}
-                >
-                  <Plus size={14} />
-                  <span>Register Vehicle</span>
-                </button>
-              </div>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={() => setIsVehicleModalOpen(true)}
+                style={{
+                  backgroundColor: 'var(--accent-whatsapp)',
+                  borderColor: 'var(--accent-whatsapp)',
+                  color: '#0b141a',
+                  fontWeight: 600
+                }}
+              >
+                <Plus size={14} />
+                <span>Register Vehicle</span>
+              </button>
             }
           />
 
@@ -2213,36 +2197,20 @@ export const ManagerView: React.FC<Props> = ({
             onRefresh={handleManualRefresh}
             refreshing={refreshing}
             actions={
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => handleCleanupDummyData(false)}
-                  style={{
-                    color: 'var(--status-danger)',
-                    borderColor: 'var(--status-danger-border)',
-                    fontSize: '0.78rem'
-                  }}
-                  title="Clean all dummy/test trips and reset driver statuses"
-                >
-                  <Trash2 size={13} />
-                  <span>Clean Dummy Trips</span>
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-primary btn-sm"
-                  onClick={() => setIsDriverModalOpen(true)}
-                  style={{
-                    backgroundColor: 'var(--accent-whatsapp)',
-                    borderColor: 'var(--accent-whatsapp)',
-                    color: '#0b141a',
-                    fontWeight: 600
-                  }}
-                >
-                  <Plus size={14} />
-                  <span>Register Driver</span>
-                </button>
-              </div>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={() => setIsDriverModalOpen(true)}
+                style={{
+                  backgroundColor: 'var(--accent-whatsapp)',
+                  borderColor: 'var(--accent-whatsapp)',
+                  color: '#0b141a',
+                  fontWeight: 600
+                }}
+              >
+                <Plus size={14} />
+                <span>Register Driver</span>
+              </button>
             }
           />
 
