@@ -130,18 +130,14 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
   }, [activeTripForFocusedVehicle]);
 
   const overviewBaseLocation = useMemo(() => {
-    if (activeTripForFocusedVehicle) {
+    if (activeTripForFocusedVehicle && typeof activeTripForFocusedVehicle.starting_latitude === 'number' && typeof activeTripForFocusedVehicle.starting_longitude === 'number') {
       return {
-        name: activeTripForFocusedVehicle.starting_location || 'HoseXperts Central Depot',
-        latitude: activeTripForFocusedVehicle.starting_latitude || 28.5355,
-        longitude: activeTripForFocusedVehicle.starting_longitude || 77.2680
+        name: activeTripForFocusedVehicle.starting_location || 'Central Depot',
+        latitude: activeTripForFocusedVehicle.starting_latitude,
+        longitude: activeTripForFocusedVehicle.starting_longitude
       };
     }
-    return {
-      name: 'HoseXperts Central Depot',
-      latitude: 28.5355,
-      longitude: 77.2680
-    };
+    return undefined;
   }, [activeTripForFocusedVehicle]);
 
   return (

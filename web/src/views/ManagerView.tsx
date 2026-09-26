@@ -1870,11 +1870,15 @@ export const ManagerView: React.FC<Props> = ({
                     setFocusedMapLocation({ latitude: v.latitude, longitude: v.longitude });
                   }
                 }}
-                baseLocation={{
-                  name: activeTripForSelectedVehicle?.starting_location || 'Delhi Central Logistics Depot',
-                  latitude: activeTripForSelectedVehicle?.starting_latitude || 28.5355,
-                  longitude: activeTripForSelectedVehicle?.starting_longitude || 77.2680
-                }}
+                baseLocation={
+                  activeTripForSelectedVehicle && typeof activeTripForSelectedVehicle.starting_latitude === 'number' && typeof activeTripForSelectedVehicle.starting_longitude === 'number'
+                    ? {
+                        name: activeTripForSelectedVehicle.starting_location || 'Logistics Depot',
+                        latitude: activeTripForSelectedVehicle.starting_latitude,
+                        longitude: activeTripForSelectedVehicle.starting_longitude
+                      }
+                    : undefined
+                }
                 stops={activeTripForSelectedVehicle?.stops || []}
                 events={activeTripForSelectedVehicle?.events || []}
                 activeTrip={activeTripForSelectedVehicle}

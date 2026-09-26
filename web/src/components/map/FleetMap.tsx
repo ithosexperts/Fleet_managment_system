@@ -137,9 +137,9 @@ export const FleetMap: React.FC<FleetMapProps> = ({
     }
   }, [theme]);
 
-  // Normalized Base Coordinate
+  // Normalized Base Coordinate (only when a valid baseLocation prop is provided)
   const baseCoord = useMemo<NormalizedCoord | null>(() => {
-    return toNormalizedCoord(baseLocation) || { lat: 28.5355, lng: 77.2680 };
+    return toNormalizedCoord(baseLocation);
   }, [baseLocation?.latitude, baseLocation?.longitude]);
 
   // Normalized Stops
@@ -167,32 +167,27 @@ export const FleetMap: React.FC<FleetMapProps> = ({
   // Normalized Fleet Vehicles with spatial de-duplication and live event tracking
   const normalizedVehicles = useMemo<VehicleMarkerData[]>(() => {
     const activeVehicles = fleetVehicles.filter((v) => v.status !== 'INACTIVE');
-    let depotIndex = 0;
+    const result: VehicleMarkerData[] = [];
 
-    return activeVehicles.map((v) => {
+    for (const v of activeVehicles) {
       // 1. Most recent trip event with coords
       const matchingEvents = events.filter(
         (e) => e.vehicle_id === v.id && typeof e.latitude === 'number' && typeof e.longitude === 'number'
       );
       const latestEvt = matchingEvents.length > 0 ? matchingEvents[matchingEvents.length - 1] : null;
 
-      // 2. Direct vehicle coords
-      let lat: number | undefined = latestEvt?.latitude ?? (typeof (v as any).latitude === 'number' ? (v as any).latitude : undefined);
-      let lng: number | undefined = latestEvt?.longitude ?? (typeof (v as any).longitude === 'number' ? (v as any).longitude : undefined);
+      // 2. Direct vehicle coords from real GPS fix
+      const lat: number | undefined = latestEvt?.latitude ?? (typeof (v as any).latitude === 'number' ? (v as any).latitude : undefined);
+      const lng: number | undefined = latestEvt?.longitude ?? (typeof (v as any).longitude === 'number' ? (v as any).longitude : undefined);
 
-      // 3. Fallback to base depot with small radial dispersion
-      if (typeof lat !== 'number' || typeof lng !== 'number') {
-        const depotBase = baseCoord || { lat: 28.5355, lng: 77.2680 };
-        const angle = (depotIndex * 2 * Math.PI) / 6;
-        const radius = 0.00035;
-        lat = depotBase.lat + Math.sin(angle) * radius;
-        lng = depotBase.lng + Math.cos(angle) * radius;
-        depotIndex++;
+      // Only plot vehicle if it has valid numeric GPS coordinates (do NOT invent fallback dummy coords)
+      if (typeof lat !== 'number' || typeof lng !== 'number' || isNaN(lat) || isNaN(lng)) {
+        continue;
       }
 
       const speedVal = (v as any).speed_kmh || 0;
 
-      return {
+      result.push({
         id: v.id,
         vehicle_number: v.vehicle_number,
         model: v.model,
@@ -201,11 +196,13 @@ export const FleetMap: React.FC<FleetMapProps> = ({
         heading: (v as any).heading_deg ?? (v as any).heading ?? 0,
         speedKmh: speedVal,
         driverName: (v as any).assigned_driver_name || (v as any).driver_name || ''
-      };
-    });
-  }, [fleetVehicles, events, baseCoord]);
+      });
+    }
 
-  // Active tracked vehicle data
+    return result;
+  }, [fleetVehicles, events]);
+
+  // Active tracked vehicle data: only if selected or actively ON_TRIP
   const trackedVehicle = useMemo(() => {
     if (selectedVehicle) {
       const match = normalizedVehicles.find((nv) => nv.id === selectedVehicle.id || nv.vehicle_number === selectedVehicle.vehicle_number);
@@ -227,13 +224,16 @@ export const FleetMap: React.FC<FleetMapProps> = ({
     const onTripVehicle = normalizedVehicles.find((v) => v.status === 'ON_TRIP');
     if (onTripVehicle) return onTripVehicle;
 
-    return normalizedVehicles[0] || null;
+    return null;
   }, [selectedVehicle, normalizedVehicles]);
 
   // Reverse geocode the active vehicle or driver's live coordinate for human-readable place name
   useEffect(() => {
-    const targetCoord = trackedVehicle?.coord || driverCoord || baseCoord;
-    if (!targetCoord) return;
+    const targetCoord = trackedVehicle?.coord || driverCoord;
+    if (!targetCoord) {
+      setLivePlaceName('');
+      return;
+    }
 
     let isSubscribed = true;
     reverseGeocodeLocation(targetCoord).then((place) => {
@@ -439,7 +439,7 @@ export const FleetMap: React.FC<FleetMapProps> = ({
       }}
     >
       <MapView
-        initialCenter={routeOriginCoord || baseCoord || { lat: 28.5355, lng: 77.2680 }}
+        initialCenter={routeOriginCoord || baseCoord || activeUserCoord || { lat: 28.6139, lng: 77.2090 }}
         initialZoom={13}
         height="100%"
         theme={currentTheme}
@@ -447,8 +447,8 @@ export const FleetMap: React.FC<FleetMapProps> = ({
           mapInstanceRef.current = map;
         }}
       >
-        {/* Base / Central Logistics Hub Marker */}
-        {baseCoord && (
+        {/* Base / Central Logistics Hub Marker (only when explicit baseLocation with coords is supplied) */}
+        {baseCoord && baseLocation && (
           <MapMarker
             map={mapInstanceRef.current}
             coord={baseCoord}
@@ -766,6 +766,8 @@ export const FleetMap: React.FC<FleetMapProps> = ({
                 mapInstanceRef.current.flyTo({ center: toLngLat(routeOriginCoord), zoom: 14, duration: 800 });
               } else if (baseCoord) {
                 mapInstanceRef.current.flyTo({ center: toLngLat(baseCoord), zoom: 13, duration: 800 });
+              } else {
+                mapInstanceRef.current.flyTo({ center: [77.2090, 28.6139], zoom: 11, duration: 800 });
               }
             }}
           />
@@ -773,7 +775,7 @@ export const FleetMap: React.FC<FleetMapProps> = ({
       </MapView>
 
       {/* Ola / Rapido / Swiggy Style Live Tracking Card & Telematics HUD */}
-      {showHud && (
+      {showHud && trackedVehicle && (
         <div
           style={{
             position: 'absolute',

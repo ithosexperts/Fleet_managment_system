@@ -327,11 +327,15 @@ export const TripDetailModal: React.FC<Props> = ({ tripId, onClose, onRefresh, t
           {activeTab === 'map' && (
             <div>
               <LeafletMap
-                baseLocation={{
-                  name: trip.starting_location,
-                  latitude: trip.starting_latitude || 28.5355,
-                  longitude: trip.starting_longitude || 77.2680
-                }}
+                baseLocation={
+                  typeof trip.starting_latitude === 'number' && typeof trip.starting_longitude === 'number'
+                    ? {
+                        name: trip.starting_location,
+                        latitude: trip.starting_latitude,
+                        longitude: trip.starting_longitude
+                      }
+                    : undefined
+                }
                 stops={trip.stops}
                 events={trip.events}
                 activeTrip={trip}

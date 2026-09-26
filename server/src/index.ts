@@ -34,7 +34,7 @@ if (!jwtSecret || jwtSecret.length < 32) {
 await checkDatabaseConnection();
 await initDatabase();
 
-// Clean up dummy/test trips and release vehicles & drivers from stuck statuses
+// Clean up dummy/test trips, dummy vehicles, dummy drivers, and fake telematics
 try {
   await query(`DELETE FROM activities WHERE trip_id LIKE '%TR-2026%' OR trip_id LIKE '%TEST%' OR trip_id LIKE '%DEMO%'`);
   await query(`DELETE FROM photos WHERE trip_id LIKE '%TR-2026%' OR trip_id LIKE '%TEST%' OR trip_id LIKE '%DEMO%'`);
@@ -43,9 +43,45 @@ try {
   await query(`DELETE FROM trip_telemetry WHERE trip_id LIKE '%TR-2026%' OR trip_id LIKE '%TEST%' OR trip_id LIKE '%DEMO%'`).catch(() => {});
   await query(`DELETE FROM trip_stops WHERE trip_id LIKE '%TR-2026%' OR trip_id LIKE '%TEST%' OR trip_id LIKE '%DEMO%'`);
   await query(`DELETE FROM trips WHERE id LIKE '%TR-2026%' OR id LIKE '%TEST%' OR id LIKE '%DEMO%'`);
+
+  // Purge any dummy vehicles (e.g. DL 01 AB 20258, Tatta, test vehicles)
+  const dummyVehicles = (await query(`
+    SELECT id FROM vehicles 
+    WHERE UPPER(vehicle_number) LIKE '%20258%' 
+       OR UPPER(model) LIKE '%TATTA%'
+       OR UPPER(vehicle_number) LIKE '%TEST%'
+  `)).rows as any[];
+  for (const v of dummyVehicles) {
+    await query(`UPDATE drivers SET assigned_vehicle_id = NULL WHERE assigned_vehicle_id = $1`, [v.id]);
+    await query(`DELETE FROM vehicle_documents WHERE vehicle_id = $1`, [v.id]);
+    await query(`DELETE FROM vehicle_challans WHERE vehicle_id = $1`, [v.id]);
+    await query(`DELETE FROM trip_events WHERE vehicle_id = $1`, [v.id]);
+    await query(`DELETE FROM trips WHERE vehicle_id = $1`, [v.id]);
+    await query(`DELETE FROM vehicles WHERE id = $1`, [v.id]);
+  }
+
+  // Purge any dummy drivers (e.g. Vikaram, employee_id 254, test drivers)
+  const dummyDrivers = (await query(`
+    SELECT d.id, d.user_id FROM drivers d
+    LEFT JOIN users u ON d.user_id = u.id
+    WHERE d.employee_id = '254'
+       OR UPPER(d.employee_id) LIKE '%TEST%'
+       OR UPPER(u.name) LIKE '%VIKARAM%'
+       OR UPPER(u.name) LIKE '%VIKRAM SINGHANIA%'
+       OR UPPER(u.name) LIKE '%TEST DRIVER%'
+  `)).rows as any[];
+  for (const d of dummyDrivers) {
+    await query(`UPDATE vehicles SET assigned_driver_id = NULL WHERE assigned_driver_id = $1`, [d.user_id]);
+    await query(`DELETE FROM driver_documents WHERE driver_id = $1`, [d.id]);
+    await query(`DELETE FROM trip_events WHERE driver_id = $1`, [d.user_id]);
+    await query(`DELETE FROM trips WHERE driver_id = $1`, [d.user_id]);
+    await query(`DELETE FROM drivers WHERE id = $1`, [d.id]);
+    await query(`DELETE FROM users WHERE id = $1`, [d.user_id]);
+  }
+
   await query(`UPDATE vehicles SET status = 'AVAILABLE' WHERE status != 'MAINTENANCE' AND id NOT IN (SELECT vehicle_id FROM trips WHERE status IN ('IN_PROGRESS', 'RETURNING'))`);
   await query(`UPDATE drivers SET status = 'AVAILABLE' WHERE status != 'OFF_DUTY' AND user_id NOT IN (SELECT driver_id FROM trips WHERE status IN ('IN_PROGRESS', 'RETURNING'))`);
-  console.log('🧹 Cleaned up dummy trips, fake telematics, and reset fleet statuses');
+  console.log('🧹 Cleaned up dummy trips, dummy vehicles, dummy drivers, fake telematics, and reset fleet statuses');
 } catch (err: any) {
   console.warn('[Cleanup Warning]', err.message);
 }

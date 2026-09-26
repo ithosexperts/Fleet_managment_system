@@ -109,7 +109,7 @@ router.get('/vehicles', requireAuth, async (req, res) => {
         }
       }
 
-      v.current_location = locText || (v.status === 'ON_TRIP' ? 'In Transit' : 'HoseXperts Central Depot');
+      v.current_location = locText || (v.status === 'ON_TRIP' ? 'In Transit' : 'Stationary');
       // Only report active speed if vehicle is on an active trip and has real telemetry
       v.speed_kmh = (v.status === 'ON_TRIP' && v.active_trip_id) ? (extractedSpeed || (latestEvent.speed ? Number(latestEvent.speed) : 0)) : 0;
       v.heading_deg = (latestEvent.heading ? Number(latestEvent.heading) : 0);
@@ -117,17 +117,17 @@ router.get('/vehicles', requireAuth, async (req, res) => {
       if (activeTrip && typeof activeTrip.starting_latitude === 'number' && typeof activeTrip.starting_longitude === 'number') {
         v.latitude = activeTrip.starting_latitude;
         v.longitude = activeTrip.starting_longitude;
-        v.current_location = activeTrip.starting_location || 'HoseXperts Central Depot';
+        v.current_location = activeTrip.starting_location || 'Departing Origin';
         v.speed_kmh = 0;
         v.heading_deg = 0;
       }
     }
 
-    // Fallback coordinates to Company Central Depot so vehicle is visible and trackable on fleet radar
+    // If vehicle has no GPS fix, preserve null coords so fake pins are not plotted on the map
     if (typeof v.latitude !== 'number' || typeof v.longitude !== 'number') {
-      v.latitude = 28.5355;
-      v.longitude = 77.2680;
-      v.current_location = 'HoseXperts Central Depot';
+      v.latitude = null;
+      v.longitude = null;
+      v.current_location = v.current_location || 'Awaiting GPS';
       v.speed_kmh = 0;
       v.heading_deg = 0;
     }
@@ -677,13 +677,28 @@ router.post('/cleanup-dummy-data', requireAuth, requireRole('MANAGER'), async (r
 
       // 4. Optionally purge dummy vehicles/drivers if requested
       if (purgeDummyAssets) {
-        const dummyVehicles = (await client.query(`SELECT id FROM vehicles WHERE UPPER(vehicle_number) LIKE '%20258%' OR UPPER(model) LIKE '%TATTA%'`)).rows as any[];
+        const dummyVehicles = (await client.query(`SELECT id FROM vehicles WHERE UPPER(vehicle_number) LIKE '%20258%' OR UPPER(model) LIKE '%TATTA%' OR UPPER(vehicle_number) LIKE '%TEST%'`)).rows as any[];
         for (const dv of dummyVehicles) {
           await client.query(`UPDATE drivers SET assigned_vehicle_id = NULL WHERE assigned_vehicle_id = $1`, [dv.id]);
           await client.query(`DELETE FROM vehicle_documents WHERE vehicle_id = $1`, [dv.id]);
           await client.query(`DELETE FROM vehicle_challans WHERE vehicle_id = $1`, [dv.id]);
           await client.query(`DELETE FROM trip_events WHERE vehicle_id = $1`, [dv.id]);
+          await client.query(`DELETE FROM trips WHERE vehicle_id = $1`, [dv.id]);
           await client.query(`DELETE FROM vehicles WHERE id = $1`, [dv.id]);
+        }
+
+        const dummyDrivers = (await client.query(`
+          SELECT d.id, d.user_id FROM drivers d
+          LEFT JOIN users u ON d.user_id = u.id
+          WHERE d.employee_id = '254' OR UPPER(d.employee_id) LIKE '%TEST%' OR UPPER(u.name) LIKE '%VIKARAM%' OR UPPER(u.name) LIKE '%TEST DRIVER%'
+        `)).rows as any[];
+        for (const dd of dummyDrivers) {
+          await client.query(`UPDATE vehicles SET assigned_driver_id = NULL WHERE assigned_driver_id = $1`, [dd.user_id]);
+          await client.query(`DELETE FROM driver_documents WHERE driver_id = $1`, [dd.id]);
+          await client.query(`DELETE FROM trip_events WHERE driver_id = $1`, [dd.user_id]);
+          await client.query(`DELETE FROM trips WHERE driver_id = $1`, [dd.user_id]);
+          await client.query(`DELETE FROM drivers WHERE id = $1`, [dd.id]);
+          await client.query(`DELETE FROM users WHERE id = $1`, [dd.user_id]);
         }
       }
     });
