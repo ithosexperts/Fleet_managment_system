@@ -1,8 +1,10 @@
 /**
- * Location Geocoding & Place Suggestion Service
- * Provides fast, free, typeahead place autocomplete for destinations, facilities, and street addresses.
- * Uses Photon (OpenStreetMap/Komoot) with proximity bias, in-memory caching, and offline Indian logistics hub fallbacks.
+ * Location Geocoding & Place Suggestion Service (Mapbox Geocoding with Photon/Nominatim Fallback)
+ * Provides typeahead autocomplete for destinations, facilities, and street addresses,
+ * plus reverse geocoding for pin drops.
  */
+
+import { NormalizedCoord } from '../components/map/types';
 
 export interface PlaceSuggestion {
   id: string;
@@ -19,6 +21,7 @@ export interface PlaceSuggestion {
 
 // In-memory LRU cache for search results
 const searchCache = new Map<string, PlaceSuggestion[]>();
+const reverseCache = new Map<string, string>();
 let activeAbortController: AbortController | null = null;
 
 export function abortPlaceSearch() {
@@ -29,7 +32,7 @@ export function abortPlaceSearch() {
 }
 
 /**
- * Searches places with debounce, query caching, and optional proximity bias.
+ * Searches places with debounce, query caching, Mapbox Geocoding, and open fallbacks.
  */
 export async function searchPlaceSuggestions(
   query: string,
@@ -67,99 +70,98 @@ export async function searchPlaceSuggestions(
   activeAbortController = new AbortController();
 
   let geocodedResults: PlaceSuggestion[] = [];
+  const mapboxToken = (import.meta.env.VITE_MAPBOX_TOKEN || '').trim();
 
-  try {
-    const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(trimmed)}&lat=${proximity.latitude}&lon=${proximity.longitude}&limit=6`;
-    const res = await fetch(url, {
-      signal: activeAbortController.signal,
-      headers: {
-        Accept: 'application/json'
-      }
-    });
-
-    if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data.features)) {
-        geocodedResults = data.features.map((f: any, idx: number): PlaceSuggestion => {
-          const props = f.properties || {};
-          const coords = f.geometry?.coordinates || [proximity.longitude, proximity.latitude];
-
-          const name = props.name || props.street || props.city || trimmed;
-          const addressParts = [
-            props.housenumber ? `${props.housenumber} ${props.street || ''}` : props.street,
-            props.district || props.suburb,
-            props.city,
-            props.state,
-            props.postcode,
-            props.country || 'India'
-          ].filter(Boolean);
-
-          const formattedAddress = addressParts.join(', ') || name;
-
-          return {
-            id: `geo-${props.osm_id || idx}-${Date.now()}`,
-            name,
-            address: formattedAddress,
-            city: props.city || props.district,
-            state: props.state,
-            country: props.country || 'India',
-            postcode: props.postcode,
-            latitude: Number(coords[1].toFixed(6)),
-            longitude: Number(coords[0].toFixed(6)),
-            isSavedDestination: false
-          };
-        });
-      }
-    }
-  } catch (err: any) {
-    if (err.name === 'AbortError') {
-      return matchingSaved;
-    }
-    console.warn('[Geocoding] Photon lookup error, trying Nominatim online:', err.message);
-  }
-
-  // If Photon returned empty or failed, fallback to live Nominatim OpenStreetMap API
-  if (geocodedResults.length === 0 && !activeAbortController?.signal?.aborted) {
+  // 2. Try Mapbox Geocoding API if token is valid
+  if (mapboxToken && !mapboxToken.includes('your-public')) {
     try {
-      const nomUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(trimmed)}&countrycodes=in&limit=6&addressdetails=1`;
-      const nomRes = await fetch(nomUrl, {
-        signal: activeAbortController?.signal,
-        headers: {
-          Accept: 'application/json',
-          'User-Agent': 'TruckTracker-Logistics-Platform/2.0'
-        }
+      const mapboxUrl = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(trimmed)}.json?access_token=${mapboxToken}&country=IN&proximity=${proximity.longitude},${proximity.latitude}&limit=6`;
+      const res = await fetch(mapboxUrl, {
+        signal: activeAbortController.signal,
+        headers: { Accept: 'application/json' }
       });
-      if (nomRes.ok) {
-        const nomData = await nomRes.json();
-        if (Array.isArray(nomData)) {
-          geocodedResults = nomData.map((item: any, idx: number): PlaceSuggestion => {
-            const addr = item.address || {};
-            const name = addr.building || addr.amenity || addr.shop || addr.office || addr.neighbourhood || addr.suburb || item.name || trimmed;
-            const fullAddress = item.display_name || name;
+
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.features)) {
+          geocodedResults = data.features.map((f: any, idx: number): PlaceSuggestion => {
+            const coords = f.center || [proximity.longitude, proximity.latitude];
+            const name = f.text || f.place_name?.split(',')[0] || trimmed;
+            const fullAddress = f.place_name || name;
+
+            const context = Array.isArray(f.context) ? f.context : [];
+            const city = context.find((c: any) => c.id?.startsWith('place'))?.text;
+            const state = context.find((c: any) => c.id?.startsWith('region'))?.text;
+            const postcode = context.find((c: any) => c.id?.startsWith('postcode'))?.text;
+            const country = context.find((c: any) => c.id?.startsWith('country'))?.text || 'India';
 
             return {
-              id: `nom-${item.place_id || idx}-${Date.now()}`,
+              id: `mbx-${f.id || idx}-${Date.now()}`,
               name,
               address: fullAddress,
-              city: addr.city || addr.town || addr.district,
-              state: addr.state,
-              country: addr.country || 'India',
-              postcode: addr.postcode,
-              latitude: Number(parseFloat(item.lat).toFixed(6)),
-              longitude: Number(parseFloat(item.lon).toFixed(6)),
+              city,
+              state,
+              country,
+              postcode,
+              latitude: Number(coords[1].toFixed(6)),
+              longitude: Number(coords[0].toFixed(6)),
               isSavedDestination: false
             };
           });
         }
       }
-    } catch (nomErr: any) {
-      if (nomErr.name !== 'AbortError') {
-        console.warn('[Geocoding] Nominatim online fallback failed:', nomErr.message);
-      }
+    } catch (err: any) {
+      if (err.name === 'AbortError') return matchingSaved;
+      // Fall through to Photon/Nominatim
     }
   }
 
-  // Combine saved destinations from database at top, followed by live geocoded places
+  // 3. Fallback to Photon (OpenStreetMap/Komoot)
+  if (geocodedResults.length === 0 && !activeAbortController?.signal?.aborted) {
+    try {
+      const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(trimmed)}&lat=${proximity.latitude}&lon=${proximity.longitude}&limit=6`;
+      const res = await fetch(url, {
+        signal: activeAbortController?.signal,
+        headers: { Accept: 'application/json' }
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.features)) {
+          geocodedResults = data.features.map((f: any, idx: number): PlaceSuggestion => {
+            const props = f.properties || {};
+            const coords = f.geometry?.coordinates || [proximity.longitude, proximity.latitude];
+            const name = props.name || props.street || props.city || trimmed;
+            const addressParts = [
+              props.housenumber ? `${props.housenumber} ${props.street || ''}` : props.street,
+              props.district || props.suburb,
+              props.city,
+              props.state,
+              props.postcode,
+              props.country || 'India'
+            ].filter(Boolean);
+
+            return {
+              id: `geo-${props.osm_id || idx}-${Date.now()}`,
+              name,
+              address: addressParts.join(', ') || name,
+              city: props.city || props.district,
+              state: props.state,
+              country: props.country || 'India',
+              postcode: props.postcode,
+              latitude: Number(coords[1].toFixed(6)),
+              longitude: Number(coords[0].toFixed(6)),
+              isSavedDestination: false
+            };
+          });
+        }
+      }
+    } catch (err: any) {
+      if (err.name === 'AbortError') return matchingSaved;
+    }
+  }
+
+  // Combine saved destinations from database at top, followed by geocoded places
   const combined = [...matchingSaved, ...geocodedResults];
 
   // De-duplicate by coordinate proximity (within 50 meters)
@@ -175,7 +177,6 @@ export async function searchPlaceSuggestions(
     }
   }
 
-  // Keep cache reasonable
   if (searchCache.size > 100) {
     const oldestKey = searchCache.keys().next().value;
     if (oldestKey) searchCache.delete(oldestKey);
@@ -183,4 +184,61 @@ export async function searchPlaceSuggestions(
   searchCache.set(cacheKey, uniqueResults);
 
   return uniqueResults;
+}
+
+/**
+ * Reverse geocodes coordinates into a human-readable street or area address.
+ */
+export async function reverseGeocodeLocation(coord: NormalizedCoord): Promise<string> {
+  const cacheKey = `${coord.lat.toFixed(4)},${coord.lng.toFixed(4)}`;
+  if (reverseCache.has(cacheKey)) {
+    return reverseCache.get(cacheKey)!;
+  }
+
+  const mapboxToken = (import.meta.env.VITE_MAPBOX_TOKEN || '').trim();
+
+  // 1. Try Mapbox Reverse Geocoding
+  if (mapboxToken && !mapboxToken.includes('your-public')) {
+    try {
+      const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${coord.lng},${coord.lat}.json?access_token=${mapboxToken}&limit=1`;
+      const res = await fetch(url, { headers: { Accept: 'application/json' } });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.features && data.features.length > 0) {
+          const address = data.features[0].place_name || data.features[0].text;
+          if (address) {
+            reverseCache.set(cacheKey, address);
+            return address;
+          }
+        }
+      }
+    } catch {
+      // Fallback
+    }
+  }
+
+  // 2. Fallback to Nominatim Reverse Geocoding
+  try {
+    const nomUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${coord.lat}&lon=${coord.lng}&zoom=18&addressdetails=1`;
+    const res = await fetch(nomUrl, {
+      headers: {
+        Accept: 'application/json',
+        'User-Agent': 'TruckTracker-Logistics-Platform/2.0'
+      }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const addr = data.display_name || data.name;
+      if (addr) {
+        reverseCache.set(cacheKey, addr);
+        return addr;
+      }
+    }
+  } catch {
+    // Fallback to formatted coordinates
+  }
+
+  const fallback = `Location at ${coord.lat.toFixed(5)}, ${coord.lng.toFixed(5)}`;
+  reverseCache.set(cacheKey, fallback);
+  return fallback;
 }

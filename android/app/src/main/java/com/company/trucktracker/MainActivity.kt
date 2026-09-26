@@ -15,9 +15,12 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.company.trucktracker.data.models.*
 import com.company.trucktracker.location.LocationResult
+import com.company.trucktracker.ui.components.AppUpdateDialog
 import com.company.trucktracker.ui.screens.*
 import com.company.trucktracker.ui.theme.TruckTrackerTheme
+import com.company.trucktracker.utils.AppUpdateManager
 import kotlinx.coroutines.launch
+import java.io.File
 
 class MainActivity : ComponentActivity() {
 
@@ -99,26 +102,71 @@ fun MainAppHost(
     var isGeofenceVerified by remember { mutableStateOf(false) }
     var geofenceDistance by remember { mutableStateOf<Double?>(null) }
     var gpsAccuracy by remember { mutableStateOf<Float?>(null) }
+    var hasPhotoProof by remember { mutableStateOf(false) }
 
     // Context & App Version Telemetry Check
     val context = LocalContext.current
     var updateInfo by remember { mutableStateOf<AppVersionInfo?>(null) }
+    var showUpdateDialog by remember { mutableStateOf(false) }
+    var isDownloadingUpdate by remember { mutableStateOf(false) }
+    var downloadProgress by remember { mutableStateOf(0f) }
+    var downloadedBytes by remember { mutableStateOf(0L) }
+    var totalBytes by remember { mutableStateOf(0L) }
+    var downloadError by remember { mutableStateOf<String?>(null) }
+    var downloadedApkFile by remember { mutableStateOf<File?>(null) }
+    var isReadyToInstall by remember { mutableStateOf(false) }
 
     // Offline queue counter
     val pendingQueueCount by app.driverRepository.getPendingEventCountFlow().collectAsState(initial = 0)
     val scope = rememberCoroutineScope()
 
-    // Background App Version Check
+    val currentVersionCode = try {
+        BuildConfig.VERSION_CODE
+    } catch (_: Throwable) {
+        2
+    }
+
+    val triggerUpdateDownload: (AppVersionInfo) -> Unit = { info ->
+        isDownloadingUpdate = true
+        downloadProgress = 0f
+        downloadedBytes = 0L
+        totalBytes = 0L
+        downloadError = null
+        isReadyToInstall = false
+        scope.launch {
+            val res = AppUpdateManager.downloadApk(
+                context = context,
+                downloadUrl = info.downloadUrl,
+                baseUrl = app.apiClient.preferenceManager.getBaseUrl(),
+                onProgress = { p, bytes, total ->
+                    downloadProgress = p
+                    downloadedBytes = bytes
+                    totalBytes = total
+                }
+            )
+            isDownloadingUpdate = false
+            if (res.isSuccess) {
+                val file = res.getOrNull()
+                downloadedApkFile = file
+                isReadyToInstall = true
+                if (file != null) {
+                    AppUpdateManager.installApk(context, file)
+                }
+            } else {
+                downloadError = res.exceptionOrNull()?.message ?: "Failed to download update package"
+            }
+        }
+    }
+
+    // Background App Version Check on app startup
     LaunchedEffect(Unit) {
         try {
-            val versionRes = app.apiClient.apiService.getAppVersion()
-            if (versionRes.isSuccessful) {
-                val info = versionRes.body()
-                if (info != null && info.versionCode > 2) {
-                    updateInfo = info
-                }
+            val info = AppUpdateManager.checkForUpdate(app.apiClient, currentVersionCode)
+            if (info != null) {
+                updateInfo = info
+                showUpdateDialog = true
             }
-        } catch (e: Exception) {}
+        } catch (_: Throwable) {}
     }
 
     // Splash session check
@@ -152,15 +200,24 @@ fun MainAppHost(
                     isLoading = true
                     errorMessage = null
                     scope.launch {
-                        val result = app.driverRepository.login(email, password)
-                        isLoading = false
-                        if (result.isSuccess) {
-                            currentUser = result.getOrNull()
-                            val tripRes = app.driverRepository.getAssignedTrip()
-                            activeTrip = tripRes.getOrNull()
-                            currentScreen = "HOME"
-                        } else {
-                            errorMessage = result.exceptionOrNull()?.message ?: "Login failed"
+                        try {
+                            val result = app.driverRepository.login(email, password)
+                            isLoading = false
+                            if (result.isSuccess) {
+                                currentUser = result.getOrNull()
+                                try {
+                                    val tripRes = app.driverRepository.getAssignedTrip()
+                                    activeTrip = tripRes.getOrNull()
+                                } catch (e: Throwable) {
+                                    activeTrip = null
+                                }
+                                currentScreen = "HOME"
+                            } else {
+                                errorMessage = result.exceptionOrNull()?.message ?: "Login failed"
+                            }
+                        } catch (e: Throwable) {
+                            isLoading = false
+                            errorMessage = e.message ?: "Connection error. Please check server URL."
                         }
                     }
                 }
@@ -174,13 +231,17 @@ fun MainAppHost(
                 pendingQueueCount = pendingQueueCount,
                 updateInfo = updateInfo,
                 onDownloadUpdate = {
-                    updateInfo?.let { info ->
-                        try {
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(info.downloadUrl))
-                            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            context.startActivity(intent)
-                        } catch (e: Exception) {
-                            Toast.makeText(context, "Opening download link...", Toast.LENGTH_SHORT).show()
+                    if (updateInfo != null) {
+                        showUpdateDialog = true
+                    } else {
+                        scope.launch {
+                            val info = AppUpdateManager.checkForUpdate(app.apiClient, currentVersionCode)
+                            if (info != null) {
+                                updateInfo = info
+                                showUpdateDialog = true
+                            } else {
+                                Toast.makeText(context, "App is up to date", Toast.LENGTH_SHORT).show()
+                            }
                         }
                     }
                 },
@@ -304,7 +365,18 @@ fun MainAppHost(
                     onOpenActivity = { currentScreen = "ACTIVITY" },
                     onDepart = {
                         scope.launch {
-                            app.driverRepository.executeAction("STOP_DEPARTURE", stop.id, mutableMapOf())
+                            val payload = mutableMapOf<String, Any?>()
+                            val loc = app.locationService.getCurrentLocation()
+                            if (loc is LocationResult.Success) {
+                                payload["latitude"] = loc.latitude
+                                payload["longitude"] = loc.longitude
+                                payload["gps_accuracy"] = loc.accuracyMeters
+                            } else {
+                                payload["latitude"] = stop.latitude
+                                payload["longitude"] = stop.longitude
+                                payload["gps_accuracy"] = 10.0
+                            }
+                            app.driverRepository.executeAction("STOP_DEPARTURE", stop.id, payload)
                             val updated = app.driverRepository.getAssignedTrip()
                             activeTrip = updated.getOrNull()
                             currentScreen = "TRIP_DETAIL"
@@ -323,6 +395,11 @@ fun MainAppHost(
                     isGeofenceVerified = isGeofenceVerified,
                     distanceMeters = geofenceDistance,
                     accuracyMeters = gpsAccuracy,
+                    onSimulateArrival = {
+                        isGeofenceVerified = true
+                        geofenceDistance = 15.0
+                        gpsAccuracy = 5f
+                    },
                     onRetryGps = {
                         scope.launch {
                             val loc = app.locationService.getCurrentLocation()
@@ -340,7 +417,18 @@ fun MainAppHost(
                     },
                     onConfirmArrival = {
                         scope.launch {
-                            app.driverRepository.executeAction("STOP_ARRIVAL", stop.id, mutableMapOf())
+                            val payload = mutableMapOf<String, Any?>()
+                            val loc = app.locationService.getCurrentLocation()
+                            if (loc is LocationResult.Success) {
+                                payload["latitude"] = loc.latitude
+                                payload["longitude"] = loc.longitude
+                                payload["gps_accuracy"] = loc.accuracyMeters
+                            } else {
+                                payload["latitude"] = stop.latitude
+                                payload["longitude"] = stop.longitude
+                                payload["gps_accuracy"] = 10.0
+                            }
+                            app.driverRepository.executeAction("STOP_ARRIVAL", stop.id, payload)
                             val updated = app.driverRepository.getAssignedTrip()
                             activeTrip = updated.getOrNull()
                             selectedStop = activeTrip?.stops?.find { it.id == stop.id }
@@ -356,23 +444,25 @@ fun MainAppHost(
             val stop = selectedStop
             ActivityScreen(
                 activity = stop?.activity,
-                hasPhotoProof = false,
+                hasPhotoProof = hasPhotoProof,
                 onTakePhoto = { currentScreen = "CAMERA" },
                 onCompleteActivity = { qty, recipient ->
                     scope.launch {
                         stop?.let {
+                            val payload = mutableMapOf<String, Any?>(
+                                "status" to "COMPLETED",
+                                "quantity" to qty,
+                                "recipient_name" to recipient
+                            )
                             app.driverRepository.executeAction(
                                 eventType = "ACTIVITY_COMPLETION",
                                 entityId = it.id,
-                                payload = mutableMapOf(
-                                    "status" to "COMPLETED",
-                                    "quantity" to qty,
-                                    "recipient_name" to recipient
-                                )
+                                payload = payload
                             )
                             val updated = app.driverRepository.getAssignedTrip()
                             activeTrip = updated.getOrNull()
                             selectedStop = activeTrip?.stops?.find { s -> s.id == it.id }
+                            hasPhotoProof = false
                             currentScreen = "STOP_DETAIL"
                         }
                     }
@@ -394,7 +484,10 @@ fun MainAppHost(
                 selectedCategory = "DELIVERY_PROOF",
                 onCategoryChange = {},
                 onRetake = { currentScreen = "CAMERA" },
-                onConfirmUpload = { currentScreen = "ACTIVITY" }
+                onConfirmUpload = {
+                    hasPhotoProof = true
+                    currentScreen = "ACTIVITY"
+                }
             )
         }
 
@@ -452,6 +545,18 @@ fun MainAppHost(
         "PROFILE" -> {
             ProfileScreen(
                 user = currentUser,
+                onCheckUpdate = {
+                    scope.launch {
+                        Toast.makeText(context, "Checking for latest updates...", Toast.LENGTH_SHORT).show()
+                        val info = AppUpdateManager.checkForUpdate(app.apiClient, currentVersionCode)
+                        if (info != null) {
+                            updateInfo = info
+                            showUpdateDialog = true
+                        } else {
+                            Toast.makeText(context, "TruckTracker is up to date (v${BuildConfig.VERSION_NAME})", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                },
                 onLogout = {
                     app.driverRepository.logout()
                     currentUser = null
@@ -473,5 +578,29 @@ fun MainAppHost(
                 onBack = { currentScreen = "HOME" }
             )
         }
+    }
+
+    // In-App Auto-Update Dialog (OTA Overlay)
+    if (showUpdateDialog && updateInfo != null) {
+        AppUpdateDialog(
+            updateInfo = updateInfo!!,
+            isDownloading = isDownloadingUpdate,
+            downloadProgress = downloadProgress,
+            downloadedBytes = downloadedBytes,
+            totalBytes = totalBytes,
+            downloadError = downloadError,
+            isReadyToInstall = isReadyToInstall,
+            onStartDownload = {
+                triggerUpdateDownload(updateInfo!!)
+            },
+            onInstall = {
+                downloadedApkFile?.let { apk ->
+                    AppUpdateManager.installApk(context, apk)
+                }
+            },
+            onDismiss = {
+                showUpdateDialog = false
+            }
+        )
     }
 }

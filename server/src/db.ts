@@ -1,11 +1,15 @@
 import dotenv from 'dotenv';
 import pg from 'pg';
 import sql from 'mssql';
+import path from 'path';
+import fs from 'fs';
 
 dotenv.config();
+dotenv.config({ path: path.resolve(process.cwd(), '../.env') });
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
-const driver = (process.env.DB_DRIVER || 'postgres') as 'postgres' | 'sqlserver';
-export function getDatabaseDriver(): 'postgres' | 'sqlserver' { return driver; }
+const driver = (process.env.DB_DRIVER || (process.env.DATABASE_URL ? 'postgres' : 'sqlite')) as 'postgres' | 'sqlserver' | 'sqlite';
+export function getDatabaseDriver(): 'postgres' | 'sqlserver' | 'sqlite' { return driver; }
 const poolMax = Number.parseInt(process.env.DB_POOL_MAX || '10', 10);
 if (!Number.isInteger(poolMax) || poolMax < 1) throw new Error('DB_POOL_MAX must be a positive integer.');
 
@@ -37,10 +41,12 @@ if (driver === 'postgres' && !postgresUrl) throw new Error('DATABASE_URL is requ
 if (driver === 'sqlserver' && (!sqlServerConfig?.server || !sqlServerConfig.database || !sqlServerConfig.user || !sqlServerConfig.password)) {
   throw new Error('DB_SERVER, DB_NAME, DB_USER, and DB_PASSWORD are required when DB_DRIVER=sqlserver.');
 }
-if (driver !== 'postgres' && driver !== 'sqlserver') throw new Error('DB_DRIVER must be postgres or sqlserver.');
+if (driver !== 'postgres' && driver !== 'sqlserver' && driver !== 'sqlite') {
+  throw new Error('DB_DRIVER must be sqlite, postgres or sqlserver.');
+}
 
-export const pool = driver === 'postgres' ? postgresPool : new sql.ConnectionPool(sqlServerConfig!);
-const poolReady = driver === 'postgres' ? Promise.resolve(postgresPool!) : (pool as sql.ConnectionPool).connect();
+export const pool = driver === 'postgres' ? postgresPool : (driver === 'sqlserver' ? new sql.ConnectionPool(sqlServerConfig!) : null);
+const poolReady = driver === 'postgres' ? Promise.resolve(postgresPool!) : (driver === 'sqlserver' ? (pool as sql.ConnectionPool).connect() : Promise.resolve(null));
 
 type QueryRow = object;
 export type QueryResult<T extends QueryRow = QueryRow> = { rows: T[]; recordset?: T[] };
@@ -48,6 +54,137 @@ export interface QueryExecutor {
   query<T extends QueryRow = QueryRow>(text: string, values?: unknown[]): Promise<QueryResult<T>>;
 }
 
+// -----------------------------------------------------------------------------
+// SQLite Client Engine (Node 22+ Native DatabaseSync)
+// -----------------------------------------------------------------------------
+let sqliteInstance: any = null;
+
+function getSqliteDb(): any {
+  if (!sqliteInstance) {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { DatabaseSync } = require('node:sqlite');
+    let dbPath = process.env.SQLITE_DB_PATH;
+    const serverDir = path.resolve(__dirname, '..');
+    if (!dbPath) {
+      dbPath = path.resolve(serverDir, 'data', 'truck_tracker.sqlite');
+    } else if (!path.isAbsolute(dbPath)) {
+      const candidateServerPath = path.resolve(serverDir, dbPath);
+      if (fs.existsSync(candidateServerPath)) {
+        dbPath = candidateServerPath;
+      } else {
+        dbPath = path.resolve(process.cwd(), dbPath);
+      }
+    }
+    const dir = path.dirname(dbPath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    const db = new DatabaseSync(dbPath);
+    db.exec('PRAGMA foreign_keys = ON;');
+    db.exec('PRAGMA journal_mode = WAL;');
+    db.function('now', () => new Date().toISOString());
+    db.function('sysutcdatetime', () => new Date().toISOString());
+    db.function('dateadd', (_interval: string, count: number, dateStr?: string) => {
+      const d = dateStr ? new Date(dateStr) : new Date();
+      d.setDate(d.getDate() + count);
+      return d.toISOString();
+    });
+    sqliteInstance = db;
+  }
+  return sqliteInstance;
+}
+
+function normalizeSqliteText(sqlText: string): string {
+  return sqlText
+    .replace(/\bTIMESTAMPTZ\b/gi, 'DATETIME')
+    .replace(/\bDOUBLE PRECISION\b/gi, 'REAL')
+    .replace(/DEFAULT\s+NOW\(\)/gi, 'DEFAULT CURRENT_TIMESTAMP')
+    .replace(/COUNT\(\*\)::text/gi, 'COUNT(*)')
+    .replace(/::text/gi, '')
+    .replace(/::int/gi, '')
+    .replace(/CURRENT_DATE\s*-\s*\(\$(\d+)\s*\*\s*INTERVAL\s*'1 day'\)/gi, "DATE('now', '-' || $$1 || ' day')")
+    .replace(/CURRENT_DATE/gi, "DATE('now')");
+}
+
+function bindSqliteParameters(text: string, values: unknown[]): { sql: string; params: unknown[] } {
+  const normalized = normalizeSqliteText(text);
+  const params: unknown[] = [];
+  const sql = normalized.replace(/\$(\d+)/g, (_match, posStr: string) => {
+    const idx = Number(posStr) - 1;
+    if (idx >= 0 && idx < values.length) {
+      params.push(values[idx]);
+      return '?';
+    }
+    return '?';
+  });
+  return { sql, params };
+}
+
+export class SqliteClient implements QueryExecutor {
+  async query<T extends QueryRow = QueryRow>(text: string, values: unknown[] = []): Promise<QueryResult<T>> {
+    const db = getSqliteDb();
+    const trimmed = text.trim();
+
+    // Check if query contains multiple statements (semicolon-separated) without parameters
+    if (trimmed.includes(';') && values.length === 0) {
+      const normalized = normalizeSqliteText(trimmed);
+      const statements = normalized.split(';').map(s => s.trim()).filter(Boolean);
+      for (const statement of statements) {
+        const alterMatch = statement.match(/^ALTER TABLE\s+(\w+)\s+ADD COLUMN IF NOT EXISTS\s+(\w+)\s+([\s\S]+)$/i);
+        if (alterMatch) {
+          const table = alterMatch[1];
+          const column = alterMatch[2];
+          const typeDef = alterMatch[3];
+          const cols = db.prepare(`PRAGMA table_info(${table})`).all().map((r: any) => r.name);
+          if (!cols.includes(column)) {
+            db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${typeDef}`);
+          }
+          continue;
+        }
+        db.exec(statement);
+      }
+      return { rows: [] };
+    }
+
+    // Check single ALTER TABLE ... ADD COLUMN IF NOT EXISTS
+    const singleAlterMatch = trimmed.match(/^ALTER TABLE\s+(\w+)\s+ADD COLUMN IF NOT EXISTS\s+(\w+)\s+([\s\S]+)$/i);
+    if (singleAlterMatch) {
+      const table = singleAlterMatch[1];
+      const column = singleAlterMatch[2];
+      const typeDef = singleAlterMatch[3];
+      const cols = db.prepare(`PRAGMA table_info(${table})`).all().map((r: any) => r.name);
+      if (!cols.includes(column)) {
+        db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${typeDef}`);
+      }
+      return { rows: [] };
+    }
+
+    const { sql: boundSql, params } = bindSqliteParameters(trimmed, values);
+    const upper = boundSql.trim().toUpperCase();
+    const isSelect = upper.startsWith('SELECT') || upper.startsWith('PRAGMA') || upper.includes('RETURNING');
+
+    try {
+      const stmt = db.prepare(boundSql);
+      if (isSelect) {
+        const rows = stmt.all(...params) as T[];
+        return { rows, recordset: rows };
+      } else {
+        stmt.run(...params);
+        return { rows: [], recordset: [] };
+      }
+    } catch (err: any) {
+      // Gracefully ignore duplicate column errors if an ALTER TABLE races
+      if (err.message && err.message.includes('duplicate column name')) {
+        return { rows: [] };
+      }
+      throw err;
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// SQL Server Translator & Client
+// -----------------------------------------------------------------------------
 function sqlServerBatch(text: string): string {
   const tablePrefix = process.env.DB_TABLE_PREFIX || (driver === 'sqlserver' ? 'FL_' : '');
   let normalized = text
@@ -155,8 +292,12 @@ export class SqlClient {
   }
 }
 
+// -----------------------------------------------------------------------------
+// Unified Query & Transaction API
+// -----------------------------------------------------------------------------
 export async function query<T extends QueryRow = QueryRow>(text: string, values: unknown[] = []): Promise<QueryResult<T>> {
   if (driver === 'postgres') return (await (await poolReady as pg.Pool).query<T>(text, values)) as QueryResult<T>;
+  if (driver === 'sqlite') return new SqliteClient().query<T>(text, values);
   return new SqlClient().query<T>(text, values);
 }
 
@@ -168,6 +309,19 @@ export async function withTransaction<T>(callback: (client: QueryExecutor) => Pr
     catch (error) { await client.query('ROLLBACK'); throw error; }
     finally { client.release(); }
   }
+  if (driver === 'sqlite') {
+    const db = getSqliteDb();
+    db.exec('BEGIN TRANSACTION;');
+    try {
+      const client = new SqliteClient();
+      const result = await callback(client);
+      db.exec('COMMIT;');
+      return result;
+    } catch (error) {
+      try { db.exec('ROLLBACK;'); } catch {}
+      throw error;
+    }
+  }
   const transaction = new sql.Transaction(await poolReady as sql.ConnectionPool);
   await transaction.begin();
   try { const result = await callback(new SqlClient(transaction)); await transaction.commit(); return result; }
@@ -177,6 +331,7 @@ export async function withTransaction<T>(callback: (client: QueryExecutor) => Pr
 export async function checkDatabaseConnection(): Promise<void> { await query('SELECT 1 AS connected'); }
 export async function closeDatabase(): Promise<void> {
   if (driver === 'postgres') await (await poolReady as pg.Pool).end();
-  else await (await poolReady as sql.ConnectionPool).close();
+  else if (driver === 'sqlserver') await (await poolReady as sql.ConnectionPool).close();
+  else if (sqliteInstance) { sqliteInstance.close(); sqliteInstance = null; }
 }
 export async function initDatabase() { const { runMigrations } = await import('./migrations/runner'); return runMigrations(); }

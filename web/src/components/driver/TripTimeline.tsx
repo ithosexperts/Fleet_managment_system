@@ -8,9 +8,11 @@ import {
   ArrowRight,
   ExternalLink,
   ChevronRight,
-  Clock
+  Clock,
+  AlertTriangle
 } from 'lucide-react';
 import { Trip, TripStop } from '../../types';
+import { calculateStopDeliveryTiming, formatClockTime } from '../../utils/timing';
 
 interface Props {
   trip: Trip;
@@ -243,6 +245,7 @@ export const TripTimeline: React.FC<Props> = ({
           const isCurrent = currentStop?.id === stop.id;
           const isPending = !isDone && !isCurrent;
           const areaCode = getStopAreaCode(stop);
+          const timing = calculateStopDeliveryTiming(stop, trip.total_delay_minutes);
 
           const distanceKm =
             stop.latitude && stop.longitude && driverCoords
@@ -306,20 +309,34 @@ export const TripTimeline: React.FC<Props> = ({
                         NEXT STOP
                       </span>
 
-                      {distanceKm !== null && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        {distanceKm !== null && (
+                          <span
+                            style={{
+                              fontSize: '0.74rem',
+                              fontWeight: 800,
+                              backgroundColor: 'var(--driver-primary)',
+                              color: '#FFFFFF',
+                              padding: '2px 8px',
+                              borderRadius: '9999px'
+                            }}
+                          >
+                            {distanceKm} km away
+                          </span>
+                        )}
                         <span
                           style={{
-                            fontSize: '0.76rem',
-                            fontWeight: 800,
-                            backgroundColor: 'var(--driver-primary)',
-                            color: '#FFFFFF',
-                            padding: '3px 9px',
-                            borderRadius: '9999px'
+                            fontSize: '0.72rem',
+                            fontWeight: 700,
+                            padding: '2px 7px',
+                            borderRadius: '9999px',
+                            backgroundColor: timing.isDelayed ? 'rgba(245, 158, 11, 0.18)' : 'rgba(16, 185, 129, 0.18)',
+                            color: timing.isDelayed ? 'var(--driver-warning)' : 'var(--driver-success)'
                           }}
                         >
-                          {distanceKm} km away
+                          {timing.varianceLabel}
                         </span>
-                      )}
+                      </div>
                     </div>
 
                     <div
@@ -367,6 +384,30 @@ export const TripTimeline: React.FC<Props> = ({
                       }}
                     >
                       {stop.address}
+                    </div>
+
+                    {/* Real-Time Stop Delivery Timing */}
+                    <div
+                      style={{
+                        marginTop: '8px',
+                        padding: '6px 10px',
+                        backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                        borderRadius: '8px',
+                        fontSize: '0.76rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '6px',
+                        border: '1px solid var(--driver-primary-border)'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px', color: 'var(--driver-text-secondary)' }}>
+                        <Clock size={12} />
+                        <span>Planned: <b>{timing.plannedTimeStr}</b></span>
+                      </div>
+                      <div style={{ fontWeight: 700, color: timing.isDelayed ? 'var(--driver-warning)' : 'var(--driver-primary)' }}>
+                        {timing.expectedDeliveryStr}
+                      </div>
                     </div>
 
                     {/* Action Button inside current stop */}
@@ -460,10 +501,13 @@ export const TripTimeline: React.FC<Props> = ({
                         ✓ Delivered
                       </span>
                     </div>
-                    <div style={{ fontSize: '0.74rem', color: 'var(--driver-text-secondary)', marginTop: '2px' }}>
-                      {stop.actual_arrival_time
-                        ? `Delivered at ${new Date(stop.actual_arrival_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-                        : 'Completed'}
+                    <div style={{ fontSize: '0.74rem', color: 'var(--driver-text-secondary)', marginTop: '2px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span>
+                        {timing.actualTimeStr ? `Delivered at ${timing.actualTimeStr}` : 'Completed'}
+                      </span>
+                      <span style={{ fontSize: '0.7rem', color: timing.isDelayed ? 'var(--driver-warning)' : 'var(--driver-success)', fontWeight: 600 }}>
+                        {timing.varianceLabel}
+                      </span>
                     </div>
                   </div>
                 ) : (
@@ -501,6 +545,10 @@ export const TripTimeline: React.FC<Props> = ({
                     </div>
                     <div style={{ fontSize: '0.74rem', color: 'var(--driver-text-muted)', marginTop: '2px' }}>
                       {stop.address}
+                    </div>
+                    <div style={{ fontSize: '0.72rem', color: timing.isDelayed ? 'var(--driver-warning)' : 'var(--driver-text-secondary)', marginTop: '4px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <Clock size={11} />
+                      <span>Planned: {timing.plannedTimeStr} → {timing.expectedDeliveryStr}</span>
                     </div>
                   </div>
                 )}

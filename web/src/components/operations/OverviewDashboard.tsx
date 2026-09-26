@@ -19,6 +19,7 @@ import {
 import { Trip, Driver, Vehicle, OperationalException } from '../../types';
 import { StatusBadge } from '../StatusBadge';
 import { LeafletMap } from '../LeafletMap';
+import { calculateTripTimingSummary, formatClockTime } from '../../utils/timing';
 
 interface OverviewDashboardProps {
   trips: Trip[];
@@ -114,10 +115,34 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
     [exceptions]
   );
 
-  // Memoized overview stops for stable Leaflet layer rendering
+  // Focused vehicle active trip for route visualization
+  const activeTripForFocusedVehicle = useMemo(() => {
+    if (!focusedVehicle) return null;
+    return trips.find((t) => (t.vehicle_id === focusedVehicle.id || t.vehicle_number === focusedVehicle.vehicle_number) && t.status !== 'COMPLETED' && t.status !== 'CANCELLED') || null;
+  }, [trips, focusedVehicle]);
+
+  // Memoized overview stops for focused vehicle's route
   const overviewStops = useMemo(() => {
-    return trips.flatMap((t) => t.stops || []).slice(0, 15);
-  }, [trips]);
+    if (activeTripForFocusedVehicle && activeTripForFocusedVehicle.stops) {
+      return activeTripForFocusedVehicle.stops;
+    }
+    return [];
+  }, [activeTripForFocusedVehicle]);
+
+  const overviewBaseLocation = useMemo(() => {
+    if (activeTripForFocusedVehicle) {
+      return {
+        name: activeTripForFocusedVehicle.starting_location || 'HoseXperts Central Depot',
+        latitude: activeTripForFocusedVehicle.starting_latitude || 28.5355,
+        longitude: activeTripForFocusedVehicle.starting_longitude || 77.2680
+      };
+    }
+    return {
+      name: 'HoseXperts Central Depot',
+      latitude: 28.5355,
+      longitude: 77.2680
+    };
+  }, [activeTripForFocusedVehicle]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '22px', width: '100%' }}>
@@ -376,11 +401,7 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
 
         <div className="overview-map-container" style={{ height: '380px', width: '100%', position: 'relative' }}>
           <LeafletMap
-            baseLocation={{
-              name: 'HoseXperts Central Depot',
-              latitude: 28.5355,
-              longitude: 77.2680
-            }}
+            baseLocation={overviewBaseLocation}
             stops={overviewStops}
             fleetVehicles={vehicles}
             focusedLocation={focusedLocation}
@@ -432,90 +453,175 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
             </button>
           </div>
 
-          <div style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {trips.slice(0, 5).map((trip) => {
               const isUnassigned = !trip.driver_id || trip.status === 'PLANNED';
+              const timing = calculateTripTimingSummary(trip);
+
               return (
                 <div
                   key={trip.id}
                   style={{
-                    padding: '12px 14px',
-                    borderRadius: 'var(--radius-sm)',
+                    padding: '14px 16px',
+                    borderRadius: 'var(--radius-md)',
                     backgroundColor: 'var(--bg-card)',
                     border: '1px solid var(--border-subtle)',
                     display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: '12px'
+                    flexDirection: 'column',
+                    gap: '10px',
+                    transition: 'box-shadow 0.15s ease'
                   }}
                 >
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  {/* Row 1: ID, Status, Delay Badge, and Action Buttons */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                       <span
                         onClick={() => onOpenTripDetails(trip.id)}
-                        style={{ fontWeight: 800, fontSize: '0.88rem', color: 'var(--brand-primary)', cursor: 'pointer' }}
+                        style={{ fontWeight: 800, fontSize: '0.92rem', color: 'var(--brand-primary)', cursor: 'pointer', letterSpacing: '-0.01em' }}
+                        title="View Full Trip Manifest"
                       >
                         {trip.id}
                       </span>
                       <StatusBadge status={trip.status} />
-                    </div>
-                    <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                      Driver: <strong style={{ color: 'var(--text-primary)' }}>{trip.driver_name || 'Unassigned'}</strong> • Vehicle: {trip.vehicle_number || 'N/A'}
-                    </div>
-                  </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    {trip.vehicle_number && (
-                      <button
-                        type="button"
-                        className="btn btn-secondary btn-sm"
-                        onClick={() => {
-                          const v = vehicles.find(
-                            (veh) => veh.vehicle_number === trip.vehicle_number || veh.id === trip.vehicle_id
-                          );
-                          if (v) {
-                            if (onTrackVehicle) {
-                              onTrackVehicle(v);
-                            } else {
-                              setFocusedVehicleId(v.id);
-                            }
-                          }
-                        }}
+                      {/* Real-Time Delay Status Badge */}
+                      <span
                         style={{
-                          fontSize: '0.74rem',
-                          padding: '4px 8px',
                           display: 'inline-flex',
                           alignItems: 'center',
                           gap: '4px',
-                          borderColor: '#10b981',
-                          color: '#10b981',
-                          fontWeight: 700
+                          padding: '2px 8px',
+                          borderRadius: '9999px',
+                          fontSize: '0.72rem',
+                          fontWeight: 700,
+                          backgroundColor: timing.delayBadge.bgColor,
+                          color: timing.delayBadge.textColor,
+                          border: `1px solid ${timing.delayBadge.borderColor}`
                         }}
-                        title="Track vehicle live on map"
                       >
-                        <Navigation size={11} />
-                        <span>Track</span>
-                      </button>
-                    )}
-                    {isUnassigned ? (
-                      <button
-                        type="button"
-                        className="btn btn-primary"
-                        onClick={() => onOpenAssignment(trip)}
-                        style={{ fontSize: '0.76rem', padding: '5px 10px' }}
-                      >
-                        Assign
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        className="btn btn-outline"
-                        onClick={() => onOpenTripDetails(trip.id)}
-                        style={{ fontSize: '0.76rem', padding: '5px 10px' }}
-                      >
-                        Details
-                      </button>
-                    )}
+                        {timing.delayBadge.isDelayed ? <AlertTriangle size={11} /> : <CheckCircle2 size={11} />}
+                        <span>{timing.delayBadge.label}</span>
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      {trip.vehicle_number && (
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => {
+                            const v = vehicles.find(
+                              (veh) => veh.vehicle_number === trip.vehicle_number || veh.id === trip.vehicle_id
+                            );
+                            if (v) {
+                              if (onTrackVehicle) {
+                                onTrackVehicle(v);
+                              } else {
+                                setFocusedVehicleId(v.id);
+                              }
+                            }
+                          }}
+                          style={{
+                            fontSize: '0.74rem',
+                            padding: '4px 8px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            borderColor: '#10b981',
+                            color: '#10b981',
+                            fontWeight: 700
+                          }}
+                          title="Track vehicle live on telematics radar"
+                        >
+                          <Navigation size={11} />
+                          <span>Track Live</span>
+                        </button>
+                      )}
+                      {isUnassigned ? (
+                        <button
+                          type="button"
+                          className="btn btn-primary"
+                          onClick={() => onOpenAssignment(trip)}
+                          style={{ fontSize: '0.76rem', padding: '5px 10px' }}
+                        >
+                          Assign
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          className="btn btn-outline"
+                          onClick={() => onOpenTripDetails(trip.id)}
+                          style={{ fontSize: '0.76rem', padding: '5px 10px' }}
+                        >
+                          Details
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Row 2: Driver & Vehicle & Route Corridor */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                    <div>
+                      Driver: <strong style={{ color: 'var(--text-primary)' }}>{trip.driver_name || 'Unassigned'}</strong> • Truck: <strong style={{ color: 'var(--text-primary)' }}>{trip.vehicle_number || 'N/A'}</strong>
+                    </div>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+                      <MapPin size={12} color="var(--brand-primary)" />
+                      <span style={{ maxWidth: '240px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {timing.currentDestinationName}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Row 3: Standardized Real-Time Departure, Delivery Time & Stops Progress */}
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                      gap: '8px',
+                      padding: '8px 12px',
+                      backgroundColor: 'var(--bg-secondary)',
+                      borderRadius: 'var(--radius-sm)',
+                      fontSize: '0.76rem',
+                      alignItems: 'center'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Clock size={13} style={{ color: 'var(--text-muted)' }} />
+                      <span>
+                        Departure:{' '}
+                        <strong style={{ color: 'var(--text-primary)' }}>
+                          {timing.actualStart ? `Departed ${timing.actualStart}` : `Planned ${timing.plannedDeparture}`}
+                        </strong>
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Truck size={13} style={{ color: timing.delayBadge.isDelayed ? '#f59e0b' : '#10b981' }} />
+                      <span>
+                        Delivery:{' '}
+                        <strong style={{ color: timing.delayBadge.isDelayed ? 'var(--status-delayed, #f59e0b)' : 'var(--text-primary)' }}>
+                          {timing.expectedFinalDelivery}
+                        </strong>
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ color: 'var(--text-muted)' }}>Progress:</span>
+                      <div style={{ flex: 1, height: '5px', backgroundColor: 'var(--border-subtle)', borderRadius: '9999px', overflow: 'hidden' }}>
+                        <div
+                          style={{
+                            width: `${timing.progressPercent}%`,
+                            height: '100%',
+                            backgroundColor: timing.progressPercent === 100 ? '#10b981' : 'var(--brand-primary)',
+                            borderRadius: '9999px',
+                            transition: 'width 0.3s ease'
+                          }}
+                        />
+                      </div>
+                      <span style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.74rem' }}>
+                        {timing.completedStopsCount}/{timing.totalStopsCount}
+                      </span>
+                    </div>
                   </div>
                 </div>
               );

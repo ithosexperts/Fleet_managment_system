@@ -17,8 +17,11 @@ export async function runDatabaseIntegrityTests(): Promise<boolean> {
     assert([1, 2, 3, 4, 7].every((version) => applied.some((migration) => migration.version === version)), 'Required migrations are applied');
 
     const requiredTables = ['users', 'vehicles', 'drivers', 'destinations', 'trips', 'trip_stops', 'activities', 'delays', 'photos', 'trip_events', 'vehicle_documents', 'maintenance_records', 'fuel_transactions', 'operational_exceptions', 'audit_logs', 'google_sheet_sync', 'vehicle_challans'];
-    const tables = getDatabaseDriver() === 'sqlserver'
+    const driver = getDatabaseDriver();
+    const tables = driver === 'sqlserver'
       ? (await query<{ name: string }>(`SELECT name FROM sys.tables WHERE is_ms_shipped = 0`)).rows.map((row) => row.name)
+      : driver === 'sqlite'
+      ? (await query<{ name: string }>(`SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'`)).rows.map((row) => row.name)
       : (await query<{ tablename: string }>(`SELECT tablename FROM pg_tables WHERE schemaname = 'public'`)).rows.map((row) => row.tablename);
     for (const table of requiredTables) assert(tables.includes(table), `Table exists: ${table}`);
 
@@ -30,7 +33,15 @@ export async function runDatabaseIntegrityTests(): Promise<boolean> {
     }
     assert(foreignKeyBlocked, 'Foreign key constraint rejects orphaned stops');
 
-    const columns = async (table: string) => (await query<{ column_name: string }>(`SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = $1`, [table])).rows.map((row) => row.column_name);
+    const columns = async (table: string) => {
+      if (driver === 'sqlite') {
+        return (await query<{ name: string }>(`PRAGMA table_info(${table})`)).rows.map((row) => row.name);
+      }
+      if (driver === 'sqlserver') {
+        return (await query<{ column_name: string }>(`SELECT column_name FROM information_schema.columns WHERE table_name = $1`, [table])).rows.map((row) => row.column_name);
+      }
+      return (await query<{ column_name: string }>(`SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = $1`, [table])).rows.map((row) => row.column_name);
+    };
     const vehicleColumns = await columns('vehicles');
     assert(vehicleColumns.includes('fleet_unit_id') && vehicleColumns.includes('chassis_number'), 'Vehicle ERP columns exist');
     const destinationColumns = await columns('destinations');

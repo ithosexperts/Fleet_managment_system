@@ -13,7 +13,14 @@ export const App: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [simulatedRole, setSimulatedRole] = useState<'DRIVER' | 'MANAGER' | null>(null);
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
-    return (localStorage.getItem('truck_tracker_theme') as 'dark' | 'light') || 'dark';
+    // Only restore dark theme if user explicitly clicked the theme toggle
+    const explicitUserSet = localStorage.getItem('truck_tracker_user_set_theme');
+    const stored = localStorage.getItem('truck_tracker_theme');
+    if (explicitUserSet === 'true' && (stored === 'dark' || stored === 'light')) {
+      return stored;
+    }
+    // By default, light theme should always be open
+    return 'light';
   });
 
   useEffect(() => {
@@ -22,7 +29,11 @@ export const App: React.FC = () => {
   }, [theme]);
 
   const toggleTheme = () => {
-    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+    setTheme((prev) => {
+      const next = prev === 'dark' ? 'light' : 'dark';
+      localStorage.setItem('truck_tracker_user_set_theme', 'true');
+      return next;
+    });
   };
 
   useEffect(() => {
@@ -63,7 +74,7 @@ export const App: React.FC = () => {
       <div
         style={{
           minHeight: '100vh',
-          backgroundColor: 'var(--bg-primary, #0B101B)',
+          backgroundColor: 'var(--bg-primary, #F8FAFC)',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -139,7 +150,7 @@ export const App: React.FC = () => {
   const activeRole = simulatedRole || currentUser.role;
 
   return (
-    <Suspense fallback={<div style={{ minHeight: '100vh', backgroundColor: 'var(--bg-primary, #0B101B)' }} />}>
+    <Suspense fallback={<div style={{ minHeight: '100vh', backgroundColor: 'var(--bg-primary, #F8FAFC)' }} />}>
       <div>
         {activeRole === 'DRIVER' ? (
           <DriverView

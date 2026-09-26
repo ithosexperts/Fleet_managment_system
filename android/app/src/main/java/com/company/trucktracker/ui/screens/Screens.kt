@@ -500,6 +500,48 @@ fun LoginScreen(
                                 fontWeight = FontWeight.SemiBold
                             )
                             Spacer(modifier = Modifier.height(8.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Button(
+                                    onClick = {
+                                        serverUrlInput = "http://10.0.2.2:5000/"
+                                        onUpdateBaseUrl("http://10.0.2.2:5000/")
+                                    },
+                                    modifier = Modifier.weight(1f).height(36.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surface),
+                                    shape = RoundedCornerShape(8.dp),
+                                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
+                                ) {
+                                    Text("Emulator", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface)
+                                }
+                                Button(
+                                    onClick = {
+                                        serverUrlInput = "http://192.168.1.13:5000/"
+                                        onUpdateBaseUrl("http://192.168.1.13:5000/")
+                                    },
+                                    modifier = Modifier.weight(1f).height(36.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surface),
+                                    shape = RoundedCornerShape(8.dp),
+                                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
+                                ) {
+                                    Text("Wi-Fi", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface)
+                                }
+                                Button(
+                                    onClick = {
+                                        serverUrlInput = "https://fleet-managment-system-638o.onrender.com/"
+                                        onUpdateBaseUrl("https://fleet-managment-system-638o.onrender.com/")
+                                    },
+                                    modifier = Modifier.weight(1f).height(36.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surface),
+                                    shape = RoundedCornerShape(8.dp),
+                                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
+                                ) {
+                                    Text("Cloud", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface)
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
                             OutlinedTextField(
                                 value = serverUrlInput,
                                 onValueChange = { serverUrlInput = it },
@@ -946,7 +988,7 @@ fun ActiveTripCard(trip: Trip, onStart: () -> Unit, onContinue: () -> Unit, lang
                         letterSpacing = 1.2.sp
                     )
                     Text(
-                        trip.trip_number,
+                        trip.displayTripNumber,
                         color = MaterialTheme.colorScheme.onSurface,
                         fontWeight = FontWeight.ExtraBold,
                         fontSize = 18.sp
@@ -1171,7 +1213,7 @@ fun TripListItem(trip: Trip, onClick: () -> Unit) {
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text(trip.trip_number, color = HoseXpertsBlue, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp)
+                Text(trip.displayTripNumber, color = HoseXpertsBlue, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp)
                 StatusBadge(trip.status.name)
             }
             Spacer(modifier = Modifier.height(10.dp))
@@ -1228,7 +1270,7 @@ fun TripDetailScreen(
                             Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onSurface)
                         }
                         Column {
-                            Text(trip.trip_number, color = MaterialTheme.colorScheme.onSurface, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                            Text(trip.displayTripNumber, color = MaterialTheme.colorScheme.onSurface, fontSize = 17.sp, fontWeight = FontWeight.Bold)
                             Text("${stops.size} stops • $completedCount done", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
                         }
                     }
@@ -1477,6 +1519,7 @@ fun ArrivalScreen(
     isGeofenceVerified: Boolean,
     distanceMeters: Double?,
     accuracyMeters: Float?,
+    onSimulateArrival: () -> Unit = {},
     onConfirmArrival: () -> Unit,
     onRetryGps: () -> Unit,
     onBack: () -> Unit
@@ -1500,19 +1543,43 @@ fun ArrivalScreen(
             GeofenceStatusBanner(isGeofenceVerified, distanceMeters, accuracyMeters)
             Spacer(modifier = Modifier.weight(1f))
             if (!isGeofenceVerified) {
-                OutlinedButton(
-                    onClick = onRetryGps,
-                    modifier = Modifier.fillMaxWidth().height(52.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, HoseXpertsBlue)
-                ) {
-                    Icon(Icons.Default.MyLocation, contentDescription = null, tint = HoseXpertsBlue)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("RETRY GPS CHECK", color = HoseXpertsBlue, fontWeight = FontWeight.Bold)
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = onRetryGps,
+                        modifier = Modifier.weight(1f).height(50.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, HoseXpertsBlue)
+                    ) {
+                        Icon(Icons.Default.MyLocation, contentDescription = null, tint = HoseXpertsBlue, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("RETRY GPS", color = HoseXpertsBlue, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    }
+                    Button(
+                        onClick = onSimulateArrival,
+                        modifier = Modifier.weight(1f).height(50.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = HoseXpertsBlueLight)
+                    ) {
+                        Icon(Icons.Default.Speed, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("TEST PASS", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    }
                 }
                 Spacer(modifier = Modifier.height(12.dp))
+                PrimaryActionButton(
+                    text = "CONFIRM ARRIVAL (OVERRIDE)",
+                    enabled = true,
+                    onClick = onConfirmArrival,
+                    icon = Icons.Default.WarningAmber
+                )
+            } else {
+                PrimaryActionButton(
+                    text = "CONFIRM ARRIVAL",
+                    enabled = true,
+                    onClick = onConfirmArrival,
+                    icon = Icons.Default.CheckCircle
+                )
             }
-            PrimaryActionButton(text = "CONFIRM ARRIVAL", enabled = isGeofenceVerified, onClick = onConfirmArrival, icon = Icons.Default.CheckCircle)
         }
     }
 }
@@ -1604,11 +1671,11 @@ fun ActivityScreen(
                 }
             }
             item {
-                val canSubmit = (!photoRequired || hasPhotoProof) && recipient.isNotEmpty()
+                val canSubmit = (!photoRequired || hasPhotoProof)
                 PrimaryActionButton(
                     text = "COMPLETE ACTIVITY",
                     enabled = canSubmit,
-                    onClick = { onCompleteActivity(quantity.toIntOrNull() ?: 1, recipient) },
+                    onClick = { onCompleteActivity(quantity.toIntOrNull() ?: 1, recipient.ifBlank { "Store Receiver" }) },
                     icon = Icons.Default.CheckCircle
                 )
             }
@@ -1895,7 +1962,7 @@ fun TripCompletionScreen(trip: Trip, onDone: () -> Unit) {
         Spacer(modifier = Modifier.height(24.dp))
         Text("Trip Successfully Completed!", color = StatusGreen, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center)
         Spacer(modifier = Modifier.height(8.dp))
-        Text(trip.trip_number, color = HoseXpertsBlue, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+        Text(trip.displayTripNumber, color = HoseXpertsBlue, fontSize = 18.sp, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(4.dp))
         Text("Duration: ${trip.trip_completion_time ?: "Recorded"}", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
         Spacer(modifier = Modifier.height(36.dp))
@@ -1952,7 +2019,7 @@ fun TripHistoryScreen(history: List<Trip>, onBack: () -> Unit) {
                             }
                             Spacer(modifier = Modifier.width(14.dp))
                             Column {
-                                Text(trip.trip_number, color = HoseXpertsBlue, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp)
+                                Text(trip.displayTripNumber, color = HoseXpertsBlue, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp)
                                 Text("Completed: ${trip.trip_completion_time ?: "Recorded"}", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
                                 Text("${trip.stops?.size ?: 0} stops", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
                             }
@@ -1968,7 +2035,12 @@ fun TripHistoryScreen(history: List<Trip>, onBack: () -> Unit) {
 // SCREEN 17: DRIVER PROFILE — Enhanced
 // ─────────────────────────────────────────────────────────────────────────
 @Composable
-fun ProfileScreen(user: User?, onLogout: () -> Unit, onBack: () -> Unit) {
+fun ProfileScreen(
+    user: User?,
+    onCheckUpdate: () -> Unit = {},
+    onLogout: () -> Unit,
+    onBack: () -> Unit
+) {
     Scaffold(
         topBar = {
             Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 2.dp) {
@@ -2032,7 +2104,47 @@ fun ProfileScreen(user: User?, onLogout: () -> Unit, onBack: () -> Unit) {
                 }
             }
             item {
-                Spacer(modifier = Modifier.height(8.dp))
+                // In-App OTA Update status & manual check
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    shape = RoundedCornerShape(14.dp),
+                    elevation = CardDefaults.cardElevation(2.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(Icons.Default.SystemUpdate, contentDescription = null, tint = HoseXpertsBlue)
+                                Text("App Version", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp)
+                            }
+                            Text("v1.2.0 (OTA Enabled)", color = HoseXpertsBlue, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                        }
+                        Button(
+                            onClick = onCheckUpdate,
+                            modifier = Modifier.fillMaxWidth().height(42.dp),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = HoseXpertsBlue.copy(alpha = 0.12f), contentColor = HoseXpertsBlue)
+                        ) {
+                            Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Check for Updates", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        }
+                    }
+                }
+            }
+            item {
+                Spacer(modifier = Modifier.height(4.dp))
                 Button(
                     onClick = onLogout,
                     modifier = Modifier.fillMaxWidth().height(52.dp),

@@ -274,6 +274,28 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </button>
           )}
 
+          {/* Direct Verified Driver APK Download */}
+          <a
+            href="/api/download/driver-apk"
+            download="TruckTracker-Driver-v1.2.0.apk"
+            className="btn btn-subtle btn-sm"
+            style={{
+              width: '100%',
+              justifyContent: 'center',
+              fontSize: '0.74rem',
+              color: 'var(--text-secondary)',
+              border: '1px solid var(--border-subtle)',
+              textDecoration: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 8px'
+            }}
+          >
+            <Smartphone size={12} color="var(--brand-primary)" />
+            <span>Download Driver APK (v1.2.0 OTA)</span>
+          </a>
+
           {/* User Profile Card */}
           <div
             style={{

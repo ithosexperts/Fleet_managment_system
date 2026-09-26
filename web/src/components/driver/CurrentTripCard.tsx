@@ -1,7 +1,8 @@
 import React from 'react';
-import { Truck, ArrowRight, Clock, CheckCircle2, ChevronRight, Play } from 'lucide-react';
+import { Truck, ArrowRight, Clock, CheckCircle2, ChevronRight, Play, AlertTriangle } from 'lucide-react';
 import { Trip } from '../../types';
 import { useDriverTranslation } from '../../context/DriverLanguageContext';
+import { calculateTripTimingSummary, formatClockTime } from '../../utils/timing';
 
 interface Props {
   trip: Trip | null;
@@ -94,6 +95,8 @@ export const CurrentTripCard: React.FC<Props> = ({
     : isCompleted
     ? t.completed
     : t.onRoute;
+
+  const timing = calculateTripTimingSummary(trip);
 
   return (
     <div className="driver-hero-trip">
@@ -213,25 +216,60 @@ export const CurrentTripCard: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* Planned Departure & Stops count info */}
+      {/* Planned Departure, Real-Time Delivery Time & Delay Status Info */}
       <div
         style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: '8px',
           padding: '10px 14px',
-          backgroundColor: 'rgba(0, 0, 0, 0.14)',
+          backgroundColor: 'rgba(0, 0, 0, 0.16)',
           borderRadius: '12px',
           marginBottom: '14px',
-          fontSize: '0.82rem'
+          fontSize: '0.8rem'
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <Clock size={14} style={{ opacity: 0.85 }} />
-          <span>Planned Departure: <strong style={{ color: '#FFFFFF' }}>{trip.planned_departure_time || '06:00'}</strong></span>
+          <span>
+            Depart:{' '}
+            <strong style={{ color: '#FFFFFF' }}>
+              {timing.actualStart ? timing.actualStart : timing.plannedDeparture}
+            </strong>
+          </span>
         </div>
-        <div style={{ color: 'rgba(255, 255, 255, 0.9)', fontWeight: 600 }}>
-          {trip.vehicle_number}
+
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
+          <Truck size={14} style={{ opacity: 0.85 }} />
+          <span>
+            Delivery:{' '}
+            <strong style={{ color: timing.delayBadge.isDelayed ? '#fbbf24' : '#FFFFFF' }}>
+              {timing.expectedFinalDelivery}
+            </strong>
+          </span>
+        </div>
+
+        {/* Second row: Vehicle plate & Delay Status Pill */}
+        <div style={{ color: 'rgba(255, 255, 255, 0.9)', fontWeight: 600, fontSize: '0.74rem' }}>
+          Asset: {trip.vehicle_number}
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <span
+            style={{
+              fontSize: '0.7rem',
+              fontWeight: 700,
+              padding: '2px 8px',
+              borderRadius: '9999px',
+              backgroundColor: timing.delayBadge.isDelayed ? 'rgba(245, 158, 11, 0.25)' : 'rgba(16, 185, 129, 0.25)',
+              color: timing.delayBadge.isDelayed ? '#fbbf24' : '#34d399',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '3px'
+            }}
+          >
+            {timing.delayBadge.isDelayed ? <AlertTriangle size={10} /> : <CheckCircle2 size={10} />}
+            <span>{timing.delayBadge.label}</span>
+          </span>
         </div>
       </div>
 

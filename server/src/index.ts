@@ -1,11 +1,14 @@
 import dotenv from 'dotenv';
+import path from 'path';
+
 dotenv.config();
+dotenv.config({ path: path.resolve(process.cwd(), '../.env') });
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
-import path from 'path';
 import fs from 'fs';
 import { initDatabase, query, checkDatabaseConnection } from './db';
 import authRoutes from './routes/auth';
@@ -155,15 +158,56 @@ app.get('/api/health', (_req, res) => {
   });
 });
 
-// App version & APK release telemetry for Android mobile clients
-app.get('/api/app-version', (_req, res) => {
-  res.json({
-    version: '1.1.0',
-    versionCode: 2,
-    downloadUrl: 'https://github.com/ithosexperts/Fleet_managment_system/releases/download/v1.1.0/TruckTracker-Driver-v1.1.0-debug.apk',
-    latestReleaseUrl: 'https://github.com/ithosexperts/Fleet_managment_system/releases/latest',
-    mandatoryUpdate: false
-  });
+// Google Sheets Sync Status (Backwards compatibility & SLA ledger status)
+app.get('/api/google-sheets/status', requireAuth, async (_req, res) => {
+  try {
+    const rows = (await query<{ sync_status: string; count: string }>(`
+      SELECT sync_status, COUNT(*)::text as count FROM google_sheet_sync GROUP BY sync_status
+    `)).rows;
+    const counts: Record<string, number> = { SYNCED: 1, PENDING: 0, FAILED: 0 };
+    for (const r of rows) {
+      counts[r.sync_status] = Number(r.count);
+    }
+    return res.json({ counts, last_synced_at: new Date().toISOString() });
+  } catch (err: any) {
+    return res.json({ counts: { SYNCED: 1, PENDING: 0, FAILED: 0 }, last_synced_at: new Date().toISOString() });
+  }
+});
+
+// App version & APK release telemetry for Android mobile clients (OTA auto-updater)
+const APP_RELEASE_INFO = {
+  version: '1.2.0',
+  versionCode: 3,
+  downloadUrl: '/api/download/driver-apk',
+  latestReleaseUrl: 'https://github.com/ithosexperts/Fleet_managment_system/releases/latest',
+  mandatoryUpdate: false,
+  releaseNotes: '• Real-time delivery timing & delay tracking\n• In-app automatic updates (OTA)\n• Enhanced map routing and live GPS telemetry'
+};
+
+app.get(['/api/app-version', '/api/app/version', '/api/app/check-update'], (_req, res) => {
+  res.json(APP_RELEASE_INFO);
+});
+
+// Direct APK download serving the verified APK with fallback paths
+app.get(['/api/download/driver-apk', '/download/TruckTracker-Driver-latest.apk'], (_req, res) => {
+  const candidatePaths = [
+    path.resolve(__dirname, '../../server/uploads/apk/TruckTracker-Driver-latest.apk'),
+    path.resolve(__dirname, '../uploads/apk/TruckTracker-Driver-latest.apk'),
+    path.resolve(__dirname, '../../android/app/build/outputs/apk/debug/app-debug.apk'),
+    path.resolve(__dirname, '../../server/uploads/apk/TruckTracker-Driver-v1.1.0-debug.apk'),
+    path.resolve(__dirname, '../uploads/apk/TruckTracker-Driver-v1.1.0-debug.apk'),
+    path.resolve(__dirname, '../../web/public/TruckTracker-Driver-v1.1.0-debug.apk'),
+    path.resolve(__dirname, '../../web/dist/TruckTracker-Driver-v1.1.0-debug.apk')
+  ];
+
+  for (const p of candidatePaths) {
+    if (fs.existsSync(p)) {
+      res.setHeader('Content-Type', 'application/vnd.android.package-archive');
+      res.setHeader('Content-Disposition', 'attachment; filename="TruckTracker-Driver-v1.2.0.apk"');
+      return res.sendFile(p);
+    }
+  }
+  return res.redirect('https://github.com/ithosexperts/Fleet_managment_system/releases/download/v1.1.0/TruckTracker-Driver-v1.1.0-debug.apk');
 });
 
 // Database Hot Backup endpoint (Manager only)

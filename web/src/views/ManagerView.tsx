@@ -55,6 +55,7 @@ import { SearchableDropdown } from '../components/common/SearchableDropdown';
 import { SlaGauge, TrendBarChart, FleetStatusBar } from '../components/common/VisualCharts';
 import { DelayAttributionLineChart } from '../components/common/DelayAttributionLineChart';
 import { HoseXpertsLogo } from '../components/common/HoseXpertsLogo';
+import { calculateTripTimingSummary, formatClockTime } from '../utils/timing';
 
 // Dedicated Operations & Dispatch Workspaces
 import { OverviewDashboard } from '../components/operations/OverviewDashboard';
@@ -77,7 +78,7 @@ interface Props {
 export const ManagerView: React.FC<Props> = ({
   currentUser,
   onLogout,
-  theme = 'dark',
+  theme = 'light',
   onToggleTheme = () => {},
   onSwitchRole
 }) => {
@@ -549,7 +550,7 @@ export const ManagerView: React.FC<Props> = ({
       const match = trips.find(
         (t) =>
           (t.vehicle_id === selectedVehicleForMap.id || t.vehicle_number === selectedVehicleForMap.vehicle_number) &&
-          (t.status === 'IN_PROGRESS' || t.status === 'AT_DESTINATION' || t.status === 'ASSIGNED')
+          (t.status === 'IN_PROGRESS' || t.status === 'DELAYED' || t.status === 'AT_DESTINATION' || t.status === 'ASSIGNED' || t.status === 'RETURNING')
       );
       if (match) return match;
       const anyMatch = trips.find(
@@ -557,7 +558,7 @@ export const ManagerView: React.FC<Props> = ({
       );
       if (anyMatch) return anyMatch;
     }
-    return trips.find((t) => t.status === 'IN_PROGRESS') || trips[0];
+    return trips.find((t) => t.status === 'IN_PROGRESS' || t.status === 'DELAYED') || trips[0];
   }, [selectedVehicleForMap, trips]);
 
   // Trips Table Columns Definition
@@ -644,18 +645,23 @@ export const ManagerView: React.FC<Props> = ({
     },
     {
       key: 'planned_departure_time',
-      header: 'Schedule',
+      header: 'Timing & Delivery',
       sortable: true,
-      render: (trip) => (
-        <div style={{ fontSize: '0.8rem' }}>
-          <div>Plan: <b>{trip.planned_departure_time}</b></div>
-          {trip.actual_start_time && (
-            <div style={{ color: 'var(--accent-gold)', fontSize: '0.73rem' }}>
-              Departed: {new Date(trip.actual_start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+      render: (trip) => {
+        const timing = calculateTripTimingSummary(trip);
+        return (
+          <div style={{ fontSize: '0.78rem', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            <div>
+              <span style={{ color: 'var(--text-muted)' }}>Depart: </span>
+              <b>{timing.actualStart ? timing.actualStart : timing.plannedDeparture}</b>
             </div>
-          )}
-        </div>
-      )
+            <div style={{ color: timing.delayBadge.isDelayed ? 'var(--status-delayed, #f59e0b)' : 'var(--text-primary)', fontWeight: 600 }}>
+              <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>Delivery: </span>
+              {timing.expectedFinalDelivery}
+            </div>
+          </div>
+        );
+      }
     },
     {
       key: 'status',
@@ -665,17 +671,46 @@ export const ManagerView: React.FC<Props> = ({
     },
     {
       key: 'total_delay_minutes',
-      header: 'Delay',
+      header: 'Delay Time',
       sortable: true,
       render: (trip) => {
         const mins = trip.total_delay_minutes || 0;
         return mins > 0 ? (
-          <span style={{ fontWeight: 600, color: 'var(--status-delayed)', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-            <AlertTriangle size={12} />
-            {mins}m
+          <span
+            style={{
+              fontWeight: 700,
+              color: '#f59e0b',
+              backgroundColor: 'rgba(245, 158, 11, 0.12)',
+              border: '1px solid rgba(245, 158, 11, 0.3)',
+              padding: '2px 8px',
+              borderRadius: '9999px',
+              fontSize: '0.72rem',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px'
+            }}
+          >
+            <AlertTriangle size={11} />
+            +{mins}m Delay
           </span>
         ) : (
-          <span style={{ color: 'var(--text-muted)' }}>—</span>
+          <span
+            style={{
+              fontWeight: 600,
+              color: '#10b981',
+              backgroundColor: 'rgba(16, 185, 129, 0.12)',
+              border: '1px solid rgba(16, 185, 129, 0.3)',
+              padding: '2px 8px',
+              borderRadius: '9999px',
+              fontSize: '0.72rem',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px'
+            }}
+          >
+            <CheckCircle size={11} />
+            On Schedule
+          </span>
         );
       }
     },
@@ -951,7 +986,7 @@ export const ManagerView: React.FC<Props> = ({
       <div
         style={{
           minHeight: '100vh',
-          backgroundColor: 'var(--bg-primary, #0B101B)',
+          backgroundColor: 'var(--bg-primary, #F8FAFC)',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -1837,68 +1872,10 @@ export const ManagerView: React.FC<Props> = ({
 
             {/* Right Map Canvas with All Live Vehicles */}
             <div className="fleet-telematics-map-container" style={{ position: 'relative' }}>
-              {selectedVehicleForMap && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: '12px',
-                    left: '56px',
-                    zIndex: 999,
-                    backgroundColor: 'rgba(15, 23, 42, 0.94)',
-                    backdropFilter: 'blur(8px)',
-                    color: '#ffffff',
-                    padding: '8px 14px',
-                    borderRadius: '10px',
-                    border: '1px solid rgba(56, 189, 248, 0.5)',
-                    boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px',
-                    fontSize: '0.82rem'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span
-                      style={{
-                        width: '8px',
-                        height: '8px',
-                        borderRadius: '50%',
-                        backgroundColor: '#10b981',
-                        animation: 'pulse 1.5s infinite'
-                      }}
-                    />
-                    <span><b>Live Tracking:</b> {selectedVehicleForMap.vehicle_number}</span>
-                  </div>
-                  <span style={{ color: '#64748b' }}>|</span>
-                  <span>⚡ {Math.round(selectedVehicleForMap.speed_kmh || 0)} km/h</span>
-                  <span style={{ color: '#64748b' }}>|</span>
-                  <span>👤 {selectedVehicleForMap.assigned_driver_name || 'Driver on Duty'}</span>
-                  {activeTripForSelectedVehicle && (
-                    <>
-                      <span style={{ color: '#64748b' }}>|</span>
-                      <span>📍 Trip: {activeTripForSelectedVehicle.id}</span>
-                    </>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setSelectedVehicleForMap(null)}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: '#94a3b8',
-                      cursor: 'pointer',
-                      fontSize: '0.76rem',
-                      textDecoration: 'underline',
-                      padding: 0,
-                      marginLeft: '4px'
-                    }}
-                  >
-                    Clear Focus
-                  </button>
-                </div>
-              )}
               <LeafletMap
                 fleetVehicles={vehicles}
+                selectedVehicle={selectedVehicleForMap}
+                onClearSelectedVehicle={() => setSelectedVehicleForMap(null)}
                 focusedLocation={focusedMapLocation}
                 onSelectVehicle={(v) => {
                   setSelectedVehicleForMap(v);
@@ -1913,6 +1890,7 @@ export const ManagerView: React.FC<Props> = ({
                 }}
                 stops={activeTripForSelectedVehicle?.stops || []}
                 events={activeTripForSelectedVehicle?.events || []}
+                activeTrip={activeTripForSelectedVehicle}
                 height="650px"
                 theme={theme}
               />

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowRight, Lock, Mail, Smartphone, Eye, EyeOff, ShieldCheck } from 'lucide-react';
+import { ArrowRight, Lock, Mail, Smartphone, ShieldCheck, Eye, EyeOff } from 'lucide-react';
 import { api } from '../services/api';
 import { User } from '../types';
 import { ThemeToggle } from '../components/ThemeToggle';
@@ -11,7 +11,7 @@ interface Props {
   onToggleTheme?: () => void;
 }
 
-export const LoginView: React.FC<Props> = ({ onLoginSuccess, theme = 'dark', onToggleTheme }) => {
+export const LoginView: React.FC<Props> = ({ onLoginSuccess, theme = 'light', onToggleTheme }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -20,7 +20,7 @@ export const LoginView: React.FC<Props> = ({ onLoginSuccess, theme = 'dark', onT
 
   const handleLogin = async (loginEmail: string, loginPass: string) => {
     if (!loginEmail.trim() || !loginPass) {
-      setError('Please enter your email and password');
+      setError('Please enter your corporate email and password.');
       return;
     }
 
@@ -67,7 +67,7 @@ export const LoginView: React.FC<Props> = ({ onLoginSuccess, theme = 'dark', onT
         style={{
           maxWidth: '440px',
           width: '100%',
-          padding: '32px 28px',
+          padding: '36px 32px',
           display: 'flex',
           flexDirection: 'column',
           gap: '24px',
@@ -75,9 +75,9 @@ export const LoginView: React.FC<Props> = ({ onLoginSuccess, theme = 'dark', onT
           boxShadow: 'var(--shadow-lg)'
         }}
       >
-        {/* Brand Header */}
+        {/* Company Brand Header */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '8px' }}>
-          <HoseXpertsLogo variant={theme === 'dark' ? 'white' : 'blue'} height={46} showTagline={true} />
+          <HoseXpertsLogo variant={theme === 'dark' ? 'white' : 'blue'} height={48} showTagline={true} />
           <p style={{ fontSize: '0.84rem', color: 'var(--text-muted)', margin: '4px 0 0' }}>
             Enterprise Fleet Dispatch & Logistics Terminal
           </p>
@@ -86,12 +86,12 @@ export const LoginView: React.FC<Props> = ({ onLoginSuccess, theme = 'dark', onT
         {error && (
           <div
             style={{
-              padding: '10px 14px',
+              padding: '12px 14px',
               backgroundColor: 'var(--status-danger-bg)',
               border: '1px solid var(--status-danger-border)',
               color: 'var(--status-danger)',
               borderRadius: 'var(--radius-md)',
-              fontSize: '0.82rem',
+              fontSize: '0.84rem',
               display: 'flex',
               alignItems: 'center',
               gap: '8px'
@@ -101,40 +101,40 @@ export const LoginView: React.FC<Props> = ({ onLoginSuccess, theme = 'dark', onT
           </div>
         )}
 
-        {/* Credentials Form */}
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        {/* Secure Credentials Form */}
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
           <div className="form-group" style={{ marginBottom: 0 }}>
-            <label className="form-label" style={{ fontSize: '0.78rem', fontWeight: 600 }}>
-              <Mail size={12} style={{ display: 'inline', marginRight: '6px' }} />
+            <label className="form-label" style={{ fontSize: '0.8rem', fontWeight: 600 }}>
+              <Mail size={13} style={{ display: 'inline', marginRight: '6px', verticalAlign: '-1px' }} />
               Corporate Email or Phone
             </label>
             <input
               type="text"
               className="form-input"
-              placeholder="e.g. driver@hosexperts.com"
+              placeholder="e.g. employee@company.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
               autoComplete="username"
-              style={{ fontSize: '0.92rem' }}
+              style={{ fontSize: '0.94rem' }}
             />
           </div>
 
           <div className="form-group" style={{ marginBottom: 0 }}>
-            <label className="form-label" style={{ fontSize: '0.78rem', fontWeight: 600 }}>
-              <Lock size={12} style={{ display: 'inline', marginRight: '6px' }} />
+            <label className="form-label" style={{ fontSize: '0.8rem', fontWeight: 600 }}>
+              <Lock size={13} style={{ display: 'inline', marginRight: '6px', verticalAlign: '-1px' }} />
               Password
             </label>
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
               <input
                 type={showPassword ? 'text' : 'password'}
                 className="form-input"
-                placeholder="Enter your password"
+                placeholder="Enter password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 autoComplete="current-password"
-                style={{ fontSize: '0.92rem', paddingRight: '40px', width: '100%' }}
+                style={{ fontSize: '0.94rem', paddingRight: '40px', width: '100%' }}
               />
               <button
                 type="button"
@@ -161,7 +161,7 @@ export const LoginView: React.FC<Props> = ({ onLoginSuccess, theme = 'dark', onT
           <button
             type="submit"
             className="btn btn-primary btn-large"
-            style={{ width: '100%', marginTop: '6px', fontSize: '0.94rem', fontWeight: 700 }}
+            style={{ width: '100%', marginTop: '4px', fontSize: '0.94rem', fontWeight: 700 }}
             disabled={loading}
           >
             {loading ? 'Authenticating...' : 'Sign In to Terminal'}
@@ -169,19 +169,17 @@ export const LoginView: React.FC<Props> = ({ onLoginSuccess, theme = 'dark', onT
           </button>
         </form>
 
-        {/* Security & Direct APK Link */}
+        {/* Security Notice & Driver App APK Download */}
         <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '0.74rem', color: 'var(--text-muted)' }}>
             <ShieldCheck size={14} color="var(--accent-primary)" />
             <span>Encrypted HoseXperts Logistics Authentication</span>
           </div>
 
-          {/* Android Mobile App Direct APK Link */}
           <div style={{ textAlign: 'center' }}>
             <a
-              href="https://github.com/ithosexperts/Fleet_managment_system/releases/download/v1.1.0/TruckTracker-Driver-v1.1.0-debug.apk"
-              target="_blank"
-              rel="noopener noreferrer"
+              href="/api/download/driver-apk"
+              download="TruckTracker-Driver.apk"
               className="btn btn-subtle"
               style={{
                 display: 'inline-flex',
@@ -191,11 +189,11 @@ export const LoginView: React.FC<Props> = ({ onLoginSuccess, theme = 'dark', onT
                 color: 'var(--text-secondary)',
                 width: '100%',
                 justifyContent: 'center',
-                padding: '6px'
+                padding: '7px 10px'
               }}
             >
-              <Smartphone size={13} />
-              <span>Download Native Android Driver App (APK v1.1.0)</span>
+              <Smartphone size={14} />
+              <span>Download Native Android Driver App (APK)</span>
             </a>
           </div>
         </div>
@@ -212,7 +210,7 @@ export const LoginView: React.FC<Props> = ({ onLoginSuccess, theme = 'dark', onT
             right: 14px !important;
           }
           .card {
-            padding: 22px 18px !important;
+            padding: 24px 20px !important;
             border-radius: var(--radius-lg) !important;
           }
         }

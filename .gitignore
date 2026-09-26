@@ -1,10 +1,19 @@
+# Dependencies
 node_modules/
 dist/
 build/
 .gradle/
+android/.gradle/
+android/app/build/
 *.apk
 *.aab
 local.properties
+
+# IDE & Editor files
+.idea/
+android/.idea/
+*.iml
+.vscode/
 
 # Server runtime data
 server/data/*.sqlite
@@ -22,9 +31,10 @@ uploads/photos/*
 !uploads/photos/.gitkeep
 !uploads/photos/*.svg
 
-
 # Environment and secrets
 .env
+.env.*
+!.env.example
 *.pem
 *.key
 google_sheets_credentials.json
@@ -36,7 +46,6 @@ server/google_sheets_credentials.json
 .DS_Store
 Thumbs.db
 
+# Deployments & scratch
 .vercel
-.env*
 scratch/
-.vscode/

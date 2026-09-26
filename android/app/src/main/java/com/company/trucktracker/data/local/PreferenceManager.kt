@@ -56,7 +56,7 @@ class PreferenceManager(context: Context) {
     }
 
     fun isDarkTheme(): Boolean {
-        return prefs.getBoolean(KEY_DARK_THEME, true)
+        return prefs.getBoolean(KEY_DARK_THEME, false)
     }
 
     fun setDarkTheme(enabled: Boolean) {
@@ -72,7 +72,11 @@ class PreferenceManager(context: Context) {
         private const val KEY_USER = "user_profile"
         private const val KEY_BASE_URL = "base_url"
         private const val KEY_DARK_THEME = "dark_theme"
-        // Production Render backend API URL
-        const val DEFAULT_BASE_URL = "https://fleet-managment-system-638o.onrender.com/"
+        // Default to local machine emulator in debug, and cloud backend in release
+        val DEFAULT_BASE_URL = if (com.company.trucktracker.BuildConfig.DEBUG) {
+            "http://10.0.2.2:5000/"
+        } else {
+            "https://fleet-managment-system-638o.onrender.com/"
+        }
     }
 }

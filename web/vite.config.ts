@@ -18,12 +18,12 @@ export default defineConfig({
     }
   },
   build: {
-    chunkSizeWarningLimit: 600,
+    chunkSizeWarningLimit: 2500,
     rollupOptions: {
       output: {
         manualChunks: {
           'vendor-react': ['react', 'react-dom'],
-          'vendor-leaflet': ['leaflet'],
+          'vendor-mapbox': ['mapbox-gl'],
           'vendor-icons': ['lucide-react']
         }
       }

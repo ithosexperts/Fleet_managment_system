@@ -2,7 +2,7 @@
 
 > **Native Android Application for Field Logistics Drivers and Vehicle Operations.**
 
-Built with **Kotlin + Jetpack Compose + Android Architecture Components + Room + Retrofit + CameraX + Google Play Location Services**.
+Built with **Kotlin + Jetpack Compose + Android Architecture Components + SQLite Database + Retrofit + CameraX + Google Play Location Services**.
 
 ---
 
@@ -21,7 +21,7 @@ ANDROID DRIVER APP
 │   ├── Geofence Verification (100–250m Haversine)
 │   └── CameraX Photo Proof Metadata Tagging
 │
-├── Local Persistence (Room Database & EncryptedSharedPreferences)
+├── Local Persistence (SQLite Database & EncryptedSharedPreferences)
 │   ├── Offline Event Queue (UUID Idempotency Keys)
 │   ├── Offline Photo Queue
 │   └── Secure JWT Token & Driver Session Storage
@@ -68,17 +68,25 @@ ANDROID DRIVER APP
 
 ### Build Debug APK
 ```bash
-cd android
+# macOS / Linux
 ./gradlew assembleDebug
+
+# Windows
+gradlew.bat assembleDebug
 ```
 The resulting APK is generated at:
-`android/app/build/outputs/apk/debug/app-debug.apk`
+`app/build/outputs/apk/debug/app-debug.apk`
 
 ### Run on Connected Device / Emulator
 ```bash
+# macOS / Linux
 ./gradlew installDebug
+
+# Windows
+gradlew.bat installDebug
 ```
 
 ### Backend Host Configuration
-- **Android Emulator**: Uses `http://10.0.2.2:5000/` (pre-configured in `PreferenceManager.kt`).
-- **Physical Device**: Connect to your office/development Wi-Fi network and update the backend IP in the app settings or via `PreferenceManager.saveBaseUrl("http://<YOUR_LOCAL_IP>:5000/")`.
+- **Production Backend**: Default base URL is `https://fleet-managment-system-638o.onrender.com/` (configured in `PreferenceManager.kt`).
+- **Android Emulator Local Backend**: To point to a local server running on your host machine at `http://10.0.2.2:5000/`, update the base URL on the login screen or call `PreferenceManager.saveBaseUrl("http://10.0.2.2:5000/")`.
+- **Physical Device Local Backend**: Connect to your development Wi-Fi network and update the backend URL in app settings or via `PreferenceManager.saveBaseUrl("http://<YOUR_LOCAL_IP>:5000/")`.

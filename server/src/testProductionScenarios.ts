@@ -72,10 +72,10 @@ async function runProductionHardeningTests() {
         date: today,
         driver_id: d1Id,
         vehicle_id: vehicle.id,
-        starting_location: 'Main Logistics Depot',
+        starting_location: 'HoseXperts Central Depot, Okhla Phase III',
         planned_departure_time: '07:00',
         purpose: 'Single Express Drop',
-        stops: [{ destination_name: 'Metro Mall', address: 'Commercial Sector 5', latitude: 23.25, longitude: 77.41, planned_arrival_time: '07:45' }]
+        stops: [{ destination_name: 'Lajpat Nagar Central Market', address: 'Ring Road Commercial Complex, New Delhi', latitude: 28.5677, longitude: 77.2433, planned_arrival_time: '07:45' }]
       })
     });
     const t1Id = (await t1Res.json()).tripId;
@@ -83,14 +83,14 @@ async function runProductionHardeningTests() {
     await fetch(`${BASE_URL}/driver/trips/${t1Id}/start`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${d1Token}` },
-      body: JSON.stringify({ latitude: 23.21, longitude: 77.40 })
+      body: JSON.stringify({ latitude: 28.5355, longitude: 77.2680 })
     });
     const t1Trip = (await (await fetch(`${BASE_URL}/driver/trips/${t1Id}`, { headers: { Authorization: `Bearer ${d1Token}` } })).json()).trip;
     const t1Stop = t1Trip.stops[0];
     await fetch(`${BASE_URL}/driver/trips/${t1Id}/stops/${t1Stop.id}/arrive`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${d1Token}` },
-      body: JSON.stringify({ latitude: 23.25, longitude: 77.41 })
+      body: JSON.stringify({ latitude: 28.5677, longitude: 77.2433 })
     });
     await fetch(`${BASE_URL}/driver/trips/${t1Id}/stops/${t1Stop.id}/complete-activity`, {
       method: 'POST',
@@ -100,22 +100,22 @@ async function runProductionHardeningTests() {
     await fetch(`${BASE_URL}/driver/trips/${t1Id}/stops/${t1Stop.id}/depart`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${d1Token}` },
-      body: JSON.stringify({ latitude: 23.25, longitude: 77.41 })
+      body: JSON.stringify({ latitude: 28.5677, longitude: 77.2433 })
     });
     await fetch(`${BASE_URL}/driver/trips/${t1Id}/start-return`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${d1Token}` },
-      body: JSON.stringify({ latitude: 23.25, longitude: 77.41 })
+      body: JSON.stringify({ latitude: 28.5677, longitude: 77.2433 })
     });
     await fetch(`${BASE_URL}/driver/trips/${t1Id}/arrive-base`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${d1Token}` },
-      body: JSON.stringify({ latitude: 23.21, longitude: 77.40 })
+      body: JSON.stringify({ latitude: 28.5355, longitude: 77.2680 })
     });
     const t1Comp = await fetch(`${BASE_URL}/driver/trips/${t1Id}/complete`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${d1Token}` },
-      body: JSON.stringify({ latitude: 23.21, longitude: 77.40 })
+      body: JSON.stringify({ latitude: 28.5355, longitude: 77.2680 })
     });
     record(1, 'Single destination normal trip', t1Comp.status === 200, `Completed trip ${t1Id} with 1 stop`);
 
@@ -129,12 +129,12 @@ async function runProductionHardeningTests() {
         date: today,
         driver_id: d1Id,
         vehicle_id: vehicle.id,
-        starting_location: 'Main Logistics Depot',
+        starting_location: 'HoseXperts Central Depot, Okhla Phase III',
         planned_departure_time: '08:00',
         purpose: 'Two Point Restock',
         stops: [
-          { destination_name: 'Store A', address: 'Market A', latitude: 23.22, longitude: 77.41, planned_arrival_time: '08:30' },
-          { destination_name: 'Store B', address: 'Market B', latitude: 23.24, longitude: 77.43, planned_arrival_time: '09:15' }
+          { destination_name: 'Lajpat Nagar Central Market', address: 'Ring Road Commercial Complex, New Delhi', latitude: 28.5677, longitude: 77.2433, planned_arrival_time: '08:30' },
+          { destination_name: 'Mayur Vihar Distribution Facility', address: 'Pocket 1, Commercial Sector, Mayur Vihar, East Delhi', latitude: 28.6015, longitude: 77.2940, planned_arrival_time: '09:15' }
         ]
       })
     });
@@ -145,13 +145,13 @@ async function runProductionHardeningTests() {
     // -------------------------------------------------------------
     // TEST 3: Five destination normal trip
     // -------------------------------------------------------------
-    const fiveStops = Array.from({ length: 5 }, (_, i) => ({
-      destination_name: `Distribution Point ${i + 1}`,
-      address: `Highway Zone Sector ${i + 1}`,
-      latitude: 23.2 + i * 0.02,
-      longitude: 77.4 + i * 0.02,
-      planned_arrival_time: `0${9 + i}:00`
-    }));
+    const fiveStops = [
+      { destination_name: 'Lajpat Nagar Hub', address: 'Ring Road, New Delhi', latitude: 28.5677, longitude: 77.2433, planned_arrival_time: '09:00' },
+      { destination_name: 'Mayur Vihar Facility', address: 'Phase 1 East Delhi', latitude: 28.6015, longitude: 77.2940, planned_arrival_time: '10:00' },
+      { destination_name: 'Noida Sector 18 Dock', address: 'Commercial Sector, Noida', latitude: 28.5708, longitude: 77.3271, planned_arrival_time: '11:00' },
+      { destination_name: 'Noida Sector 62 Park', address: 'Electronic City, Noida', latitude: 28.6280, longitude: 77.3649, planned_arrival_time: '12:00' },
+      { destination_name: 'Connaught Place Center', address: 'Barakhamba Road, New Delhi', latitude: 28.6304, longitude: 77.2177, planned_arrival_time: '13:00' }
+    ];
     const t3Res = await fetch(`${BASE_URL}/trips`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${mgrToken}` },
@@ -175,12 +175,12 @@ async function runProductionHardeningTests() {
     await fetch(`${BASE_URL}/driver/trips/${t2Id}/start`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${d1Token}` },
-      body: JSON.stringify({ latitude: 23.21, longitude: 77.40 })
+      body: JSON.stringify({ latitude: 28.5355, longitude: 77.2680 })
     });
     const delayRes = await fetch(`${BASE_URL}/driver/trips/${t2Id}/delay`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${d1Token}` },
-      body: JSON.stringify({ reason: 'Traffic', description: 'Highway diversion', latitude: 23.22, longitude: 77.41 })
+      body: JSON.stringify({ reason: 'Traffic', description: 'Highway diversion', latitude: 28.5500, longitude: 77.2550 })
     });
     const delayData = await delayRes.json();
     const t2Delayed = (await (await fetch(`${BASE_URL}/driver/trips/${t2Id}`, { headers: { Authorization: `Bearer ${d1Token}` } })).json()).trip;
@@ -198,7 +198,7 @@ async function runProductionHardeningTests() {
     const delay2Res = await fetch(`${BASE_URL}/driver/trips/${t2Id}/delay`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${d1Token}` },
-      body: JSON.stringify({ reason: 'Vehicle Problem', description: 'Coolant overheating', latitude: 23.23, longitude: 77.42 })
+      body: JSON.stringify({ reason: 'Vehicle Problem', description: 'Coolant overheating', latitude: 28.5580, longitude: 77.2500 })
     });
     const delay2Id = (await delay2Res.json()).delayId;
     await fetch(`${BASE_URL}/driver/trips/${t2Id}/delay/${delay2Id}/resolve`, {
@@ -215,7 +215,7 @@ async function runProductionHardeningTests() {
     await fetch(`${BASE_URL}/driver/trips/${t2Id}/stops/${t2Stop1.id}/arrive`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${d1Token}` },
-      body: JSON.stringify({ latitude: 23.22, longitude: 77.41 })
+      body: JSON.stringify({ latitude: 28.5677, longitude: 77.2433 })
     });
     // Try to complete activity with require_photo = true before photo uploaded
     const actBlockedRes = await fetch(`${BASE_URL}/driver/trips/${t2Id}/stops/${t2Stop1.id}/complete-activity`, {
@@ -242,13 +242,13 @@ async function runProductionHardeningTests() {
     await fetch(`${BASE_URL}/driver/trips/${t2Id}/stops/${t2Stop1.id}/depart`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${d1Token}` },
-      body: JSON.stringify({ latitude: 23.22, longitude: 77.41 })
+      body: JSON.stringify({ latitude: 28.5677, longitude: 77.2433 })
     });
     const t2Stop2 = t2MultiDelays.stops[1];
     await fetch(`${BASE_URL}/driver/trips/${t2Id}/stops/${t2Stop2.id}/arrive`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${d1Token}` },
-      body: JSON.stringify({ latitude: 23.24, longitude: 77.43 })
+      body: JSON.stringify({ latitude: 28.6015, longitude: 77.2940 })
     });
     const optionalActRes = await fetch(`${BASE_URL}/driver/trips/${t2Id}/stops/${t2Stop2.id}/complete-activity`, {
       method: 'POST',
@@ -274,7 +274,7 @@ async function runProductionHardeningTests() {
     const poorGpsReturnRes = await fetch(`${BASE_URL}/driver/trips/${t2Id}/start-return`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${d1Token}` },
-      body: JSON.stringify({ latitude: 23.24, longitude: 77.43, gps_accuracy: 450 }) // 450m poor accuracy
+      body: JSON.stringify({ latitude: 28.6015, longitude: 77.2940, gps_accuracy: 450 }) // 450m poor accuracy
     });
     const returnEvent = (await query(`SELECT * FROM trip_events WHERE trip_id = $1 AND event_type = 'RETURN_STARTED'`, [t2Id])).rows[0] as any;
     record(9, 'Poor GPS accuracy recorded', poorGpsReturnRes.status === 200 && returnEvent.gps_accuracy === 450, 'Recorded accuracy of 450m faithfully');
@@ -287,7 +287,7 @@ async function runProductionHardeningTests() {
     const queuedAction = {
       endpoint: `${BASE_URL}/driver/trips/${t2Id}/arrive-base`,
       method: 'POST',
-      payload: { latitude: 23.21, longitude: 77.40, idempotencyKey: offlineEventKey }
+      payload: { latitude: 28.5355, longitude: 77.2680, idempotencyKey: offlineEventKey }
     };
     record(10, 'Network unavailable offline event queue', !!queuedAction.payload.idempotencyKey, 'Action successfully queued with idempotency key');
 
@@ -308,7 +308,7 @@ async function runProductionHardeningTests() {
     const failActStopId = uuidv4();
     await query(`
       INSERT INTO trip_stops (id, trip_id, stop_number, destination_name, address, latitude, longitude, planned_arrival_time, status)
-      VALUES ($1, $2, 99, 'Damaged Depot', 'Zone X', 23.2, 77.4, '12:00', 'IN_PROGRESS')
+      VALUES ($1, $2, 99, 'Damaged Depot', 'Okhla Industrial Area Phase II', 28.5355, 77.2680, '12:00', 'IN_PROGRESS')
     `, [failActStopId, t3Id]);
     await query(`
       INSERT INTO activities (id, trip_id, stop_id, activity_type, status, notes)
@@ -331,12 +331,12 @@ async function runProductionHardeningTests() {
     await fetch(`${BASE_URL}/driver/trips/${t2Id}/complete`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${d1Token}` },
-      body: JSON.stringify({ latitude: 23.21, longitude: 77.40 })
+      body: JSON.stringify({ latitude: 28.5355, longitude: 77.2680 })
     });
     const doubleComplete = await fetch(`${BASE_URL}/driver/trips/${t2Id}/complete`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${d1Token}` },
-      body: JSON.stringify({ latitude: 23.21, longitude: 77.40 })
+      body: JSON.stringify({ latitude: 28.5355, longitude: 77.2680 })
     });
     // C) Report delay after trip completion
     const delayAfterComp = await fetch(`${BASE_URL}/driver/trips/${t2Id}/delay`, {
@@ -389,7 +389,7 @@ async function runProductionHardeningTests() {
         vehicle_id: vehicle.id,
         planned_departure_time: '14:00',
         purpose: 'Afternoon Route',
-        stops: [{ destination_name: 'Original Destination', address: 'Old Address', latitude: 23.2, longitude: 77.4, planned_arrival_time: '14:30' }]
+        stops: [{ destination_name: 'Okhla Phase-II Logistics Dock', address: 'Commercial Sector, Okhla Phase II, New Delhi', latitude: 28.5355, longitude: 77.2680, planned_arrival_time: '14:30' }]
       })
     });
     const t4Id = (await t4Res.json()).tripId;
@@ -412,7 +412,7 @@ async function runProductionHardeningTests() {
     const addStopRes = await fetch(`${BASE_URL}/trips/${t4Id}/stops`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${mgrToken}` },
-      body: JSON.stringify({ destination_name: 'Second Destination', address: 'New Address', latitude: 23.25, longitude: 77.45, planned_arrival_time: '15:15' })
+      body: JSON.stringify({ destination_name: 'Noida Sector 18 Commercial Hub', address: 'Commercial Sector 18, Noida', latitude: 28.5708, longitude: 77.3271, planned_arrival_time: '15:15' })
     });
     const newStopId = (await addStopRes.json()).stopId;
     const t4StopsBefore = (await (await fetch(`${BASE_URL}/trips/${t4Id}`, { headers: { Authorization: `Bearer ${mgrToken}` } })).json()).trip.stops;
@@ -441,7 +441,7 @@ async function runProductionHardeningTests() {
     const unauthorizedStart = await fetch(`${BASE_URL}/driver/trips/${t4Id}/start`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${d1Token}` },
-      body: JSON.stringify({ latitude: 23.2, longitude: 77.4 })
+      body: JSON.stringify({ latitude: 28.5355, longitude: 77.2680 })
     });
     record(
       19,
@@ -456,8 +456,8 @@ async function runProductionHardeningTests() {
     const tenStops = Array.from({ length: 10 }, (_, i) => ({
       destination_name: `Distribution Depot ${i + 1}`,
       address: `Industrial Sector ${i + 1}`,
-      latitude: 23.2 + i * 0.01,
-      longitude: 77.4 + i * 0.01,
+      latitude: 28.5355 + i * 0.008,
+      longitude: 77.2680 + i * 0.008,
       planned_arrival_time: `${8 + Math.floor(i / 2)}:${(i % 2) * 30 || '00'}`
     }));
     const tTenRes = await fetch(`${BASE_URL}/trips`, {

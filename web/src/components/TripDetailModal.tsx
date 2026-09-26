@@ -20,6 +20,7 @@ import { api } from '../services/api';
 import { Trip, TripStop, Photo, Delay, TripEvent } from '../types';
 import { StatusBadge } from './StatusBadge';
 import { LeafletMap } from './LeafletMap';
+import { calculateTripTimingSummary, calculateStopDeliveryTiming, formatClockTime } from '../utils/timing';
 
 interface Props {
   tripId: string;
@@ -28,7 +29,7 @@ interface Props {
   theme?: 'dark' | 'light';
 }
 
-export const TripDetailModal: React.FC<Props> = ({ tripId, onClose, onRefresh, theme = 'dark' }) => {
+export const TripDetailModal: React.FC<Props> = ({ tripId, onClose, onRefresh, theme = 'light' }) => {
   const [trip, setTrip] = useState<Trip | null>(null);
   const [activeTab, setActiveTab] = useState<'timeline' | 'map' | 'stops' | 'photos' | 'delays' | 'audit'>('timeline');
   const [loading, setLoading] = useState(true);
@@ -66,17 +67,37 @@ export const TripDetailModal: React.FC<Props> = ({ tripId, onClose, onRefresh, t
     });
   };
 
+  const timing = calculateTripTimingSummary(trip);
+
   return (
     <div className="modal-overlay">
-      <div className="modal-content" style={{ maxWidth: '900px', maxHeight: '92vh' }}>
+      <div className="modal-content" style={{ maxWidth: '920px', maxHeight: '92vh' }}>
         {/* Header */}
         <div className="modal-header">
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
               <h2 style={{ fontSize: '1.35rem', fontFamily: 'var(--font-display)' }}>
                 {trip.id}
               </h2>
               <StatusBadge status={trip.status} />
+
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: '2px 8px',
+                  borderRadius: '9999px',
+                  fontSize: '0.72rem',
+                  fontWeight: 700,
+                  backgroundColor: timing.delayBadge.bgColor,
+                  color: timing.delayBadge.textColor,
+                  border: `1px solid ${timing.delayBadge.borderColor}`
+                }}
+              >
+                {timing.delayBadge.isDelayed ? <AlertTriangle size={11} /> : <CheckCircle2 size={11} />}
+                <span>{timing.delayBadge.label}</span>
+              </span>
             </div>
             <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '3px' }}>
               {trip.purpose} • Date: {trip.date}
@@ -92,7 +113,7 @@ export const TripDetailModal: React.FC<Props> = ({ tripId, onClose, onRefresh, t
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
             gap: '10px',
             padding: '16px 24px',
             backgroundColor: 'var(--bg-secondary)',
@@ -117,26 +138,39 @@ export const TripDetailModal: React.FC<Props> = ({ tripId, onClose, onRefresh, t
           <div>
             <div style={{ color: 'var(--text-muted)' }}>Planned Departure</div>
             <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginTop: '2px' }}>
-              {trip.planned_departure_time}
+              {timing.plannedDeparture}
             </div>
           </div>
 
           <div>
             <div style={{ color: 'var(--text-muted)' }}>Actual Start</div>
-            <div style={{ fontWeight: 600, color: trip.actual_start_time ? 'var(--text-primary)' : 'var(--text-muted)', marginTop: '2px' }}>
-              {trip.actual_start_time ? new Date(trip.actual_start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Pending'}
+            <div style={{ fontWeight: 600, color: timing.actualStart ? 'var(--text-primary)' : 'var(--text-muted)', marginTop: '2px' }}>
+              {timing.actualStart || 'Pending'}
             </div>
           </div>
 
           <div>
-            <div style={{ color: 'var(--text-muted)' }}>Total Delay</div>
-            <div style={{ fontWeight: 600, color: (trip.total_delay_minutes || 0) > 0 ? 'var(--status-delayed)' : 'var(--status-success)', marginTop: '2px' }}>
-              {trip.total_delay_minutes || 0} mins
+            <div style={{ color: 'var(--text-muted)' }}>Delivery Time</div>
+            <div
+              style={{
+                fontWeight: 700,
+                color: timing.delayBadge.isDelayed ? 'var(--status-delayed, #f59e0b)' : 'var(--status-success, #10b981)',
+                marginTop: '2px'
+              }}
+            >
+              {timing.expectedFinalDelivery}
             </div>
           </div>
 
           <div>
-            <div style={{ color: 'var(--text-muted)' }}>Approx Distance</div>
+            <div style={{ color: 'var(--text-muted)' }}>Delay Status</div>
+            <div style={{ fontWeight: 600, color: timing.delayBadge.textColor, marginTop: '2px' }}>
+              {timing.delayBadge.label}
+            </div>
+          </div>
+
+          <div>
+            <div style={{ color: 'var(--text-muted)' }}>Distance</div>
             <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginTop: '2px' }}>
               {trip.calculated_distance_km ? `${trip.calculated_distance_km} km` : 'Unavailable'}
             </div>
@@ -289,19 +323,18 @@ export const TripDetailModal: React.FC<Props> = ({ tripId, onClose, onRefresh, t
                 </div>
               )}
             </div>
-          )}
-
-          {/* 2. MAP TAB */}
+          )}          {/* 2. MAP TAB */}
           {activeTab === 'map' && (
             <div>
               <LeafletMap
                 baseLocation={{
                   name: trip.starting_location,
-                  latitude: trip.starting_latitude || 23.2100,
-                  longitude: trip.starting_longitude || 77.4000
+                  latitude: trip.starting_latitude || 28.5355,
+                  longitude: trip.starting_longitude || 77.2680
                 }}
                 stops={trip.stops}
                 events={trip.events}
+                activeTrip={trip}
                 height="450px"
                 theme={theme}
               />
@@ -317,85 +350,93 @@ export const TripDetailModal: React.FC<Props> = ({ tripId, onClose, onRefresh, t
           {/* 3. STOPS TAB */}
           {activeTab === 'stops' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              {trip.stops?.map((stop) => (
-                <div
-                  key={stop.id}
-                  style={{
-                    padding: '16px',
-                    backgroundColor: 'var(--bg-secondary)',
-                    borderRadius: 'var(--radius-md)',
-                    border: '1px solid var(--border-subtle)'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <span
-                        style={{
-                          width: '26px',
-                          height: '26px',
-                          borderRadius: '50%',
-                          backgroundColor: stop.status === 'COMPLETED' ? 'var(--status-success)' : 'var(--accent-gold)',
-                          color: '#0d0e11',
-                          fontWeight: 700,
-                          fontSize: '0.8rem',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center'
-                        }}
-                      >
-                        {stop.stop_number}
-                      </span>
+              {trip.stops?.map((stop) => {
+                const stopTiming = calculateStopDeliveryTiming(stop, trip.total_delay_minutes);
+
+                return (
+                  <div
+                    key={stop.id}
+                    style={{
+                      padding: '16px',
+                      backgroundColor: 'var(--bg-secondary)',
+                      borderRadius: 'var(--radius-md)',
+                      border: '1px solid var(--border-subtle)'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span
+                          style={{
+                            width: '26px',
+                            height: '26px',
+                            borderRadius: '50%',
+                            backgroundColor: stop.status === 'COMPLETED' ? 'var(--status-success)' : 'var(--accent-gold)',
+                            color: '#0d0e11',
+                            fontWeight: 700,
+                            fontSize: '0.8rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
+                        >
+                          {stop.stop_number}
+                        </span>
+                        <div>
+                          <div style={{ fontWeight: 600, fontSize: '1rem' }}>{stop.destination_name}</div>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{stop.address}</div>
+                        </div>
+                      </div>
+
+                      <StatusBadge status={stop.status} />
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '8px', fontSize: '0.82rem', marginTop: '10px' }}>
                       <div>
-                        <div style={{ fontWeight: 600, fontSize: '1rem' }}>{stop.destination_name}</div>
-                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{stop.address}</div>
+                        <span style={{ color: 'var(--text-muted)' }}>Planned Arrival:</span>{' '}
+                        <b>{stopTiming.plannedTimeStr}</b>
+                      </div>
+                      <div>
+                        <span style={{ color: 'var(--text-muted)' }}>
+                          {stopTiming.isDelivered ? 'Actual Delivery:' : 'Expected Delivery:'}
+                        </span>{' '}
+                        <b style={{ color: stopTiming.isDelivered ? 'var(--status-success)' : stopTiming.isDelayed ? 'var(--status-delayed)' : 'var(--text-primary)' }}>
+                          {stopTiming.isDelivered ? stopTiming.actualTimeStr : stopTiming.expectedDeliveryStr}
+                        </b>
+                      </div>
+                      <div>
+                        <span style={{ color: 'var(--text-muted)' }}>Departure:</span>{' '}
+                        <b>{stop.actual_departure_time ? formatClockTime(stop.actual_departure_time) : (stopTiming.isDelivered ? 'Departed' : 'Pending')}</b>
+                      </div>
+                      <div>
+                        <span style={{ color: 'var(--text-muted)' }}>Variance:</span>{' '}
+                        <b style={{ color: stopTiming.isDelayed ? 'var(--status-delayed)' : 'var(--status-success)' }}>
+                          {stopTiming.varianceLabel}
+                        </b>
                       </div>
                     </div>
 
-                    <StatusBadge status={stop.status} />
+                    {stop.notes && (
+                      <div style={{ marginTop: '8px', fontSize: '0.82rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
+                        "{stop.notes}"
+                      </div>
+                    )}
+
+                    {stop.latitude && stop.longitude && (
+                      <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px solid var(--border-subtle)' }}>
+                        <a
+                          href={`https://www.google.com/maps/dir/?api=1&destination=${stop.latitude},${stop.longitude}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn btn-secondary"
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '4px 10px', fontSize: '0.75rem', color: '#38bdf8', textDecoration: 'none' }}
+                        >
+                          <Navigation size={12} /> Google Maps Navigation &rarr;
+                        </a>
+                      </div>
+                    )}
                   </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '8px', fontSize: '0.82rem', marginTop: '10px' }}>
-                    <div>
-                      <span style={{ color: 'var(--text-muted)' }}>Planned Arrival:</span>{' '}
-                      <b>{stop.planned_arrival_time}</b>
-                    </div>
-                    <div>
-                      <span style={{ color: 'var(--text-muted)' }}>Actual Arrival:</span>{' '}
-                      <b>{stop.actual_arrival_time ? new Date(stop.actual_arrival_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}</b>
-                    </div>
-                    <div>
-                      <span style={{ color: 'var(--text-muted)' }}>Departure:</span>{' '}
-                      <b>{stop.actual_departure_time ? new Date(stop.actual_departure_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}</b>
-                    </div>
-                    <div>
-                      <span style={{ color: 'var(--text-muted)' }}>Variance:</span>{' '}
-                      <b style={{ color: (stop.arrival_diff_minutes || 0) > 0 ? 'var(--status-delayed)' : 'var(--status-success)' }}>
-                        {stop.arrival_diff_minutes ? `${stop.arrival_diff_minutes > 0 ? `+${stop.arrival_diff_minutes}m late` : `${stop.arrival_diff_minutes}m early`}` : 'On time'}
-                      </b>
-                    </div>
-                  </div>
-
-                  {stop.notes && (
-                    <div style={{ marginTop: '8px', fontSize: '0.82rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
-                      "{stop.notes}"
-                    </div>
-                  )}
-
-                  {stop.latitude && stop.longitude && (
-                    <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px solid var(--border-subtle)' }}>
-                      <a
-                        href={`https://www.google.com/maps/dir/?api=1&destination=${stop.latitude},${stop.longitude}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="btn btn-secondary"
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '4px 10px', fontSize: '0.75rem', color: '#38bdf8', textDecoration: 'none' }}
-                      >
-                        <Navigation size={12} /> Google Maps Navigation &rarr;
-                      </a>
-                    </div>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 

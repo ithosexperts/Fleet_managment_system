@@ -75,7 +75,7 @@ function estimateReachingTimeMinutes(distanceKm: number): number {
 const DriverViewInner: React.FC<Props> = ({
   currentUser,
   onLogout,
-  theme = 'dark',
+  theme = 'light',
   onToggleTheme,
   onSwitchRole
 }) => {
@@ -514,7 +514,7 @@ const DriverViewInner: React.FC<Props> = ({
           justifyContent: 'center',
           gap: '20px',
           padding: '24px',
-          backgroundColor: 'var(--driver-bg, #0B101B)'
+          backgroundColor: 'var(--driver-bg, #F4F7FA)'
         }}
       >
         <div
@@ -934,12 +934,12 @@ const DriverViewInner: React.FC<Props> = ({
                   }}
                 />
 
-                {/* Leaflet Interactive Map */}
+                {/* Mapbox Interactive Map with Live Corridor */}
                 <LeafletMap
                   baseLocation={{
                     name: activeTrip?.starting_location || 'Depot HQ',
-                    latitude: 28.5355,
-                    longitude: 77.2680
+                    latitude: activeTrip?.starting_latitude || 28.5355,
+                    longitude: activeTrip?.starting_longitude || 77.2680
                   }}
                   stops={activeTrip?.stops || []}
                   driverLocation={{
@@ -949,8 +949,8 @@ const DriverViewInner: React.FC<Props> = ({
                   }}
                   height="100%"
                   theme={theme}
-                  showToolbar={false}
-                  showGoogleMapsButton={false}
+                  showToolbar={true}
+                  showGoogleMapsButton={true}
                 />
               </div>
             )}

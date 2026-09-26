@@ -109,6 +109,8 @@ router.post(
       }).catch(err => console.error('[HoseXperts Sync] Photo insert sync failed:', err));
 
       return res.status(201).json({
+        success: true,
+        data: photo,
         message: 'Photo uploaded successfully',
         photo
       });

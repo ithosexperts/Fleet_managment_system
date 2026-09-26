@@ -63,17 +63,45 @@ const getActiveTripHandler = async (req: AuthenticatedRequest, res: Response) =>
   const isManager = req.user!.role === 'MANAGER';
 
   const sql = isManager
-    ? `SELECT t.*, v.vehicle_number, v.vehicle_type, v.model as vehicle_model
+    ? `SELECT t.*, 
+              t.id as trip_number,
+              t.planned_departure_time as planned_departure,
+              t.starting_location as starting_location_name,
+              t.starting_location as starting_location_id,
+              v.vehicle_number, 
+              v.vehicle_number as vehicle_plate, 
+              v.vehicle_type, 
+              v.model as vehicle_model,
+              u.name as driver_name
        FROM trips t
        JOIN vehicles v ON t.vehicle_id = v.id
-       WHERE t.status IN ('IN_PROGRESS', 'AT_DESTINATION', 'DELAYED', 'RETURNING')
-       ORDER BY t.actual_start_time DESC
+       LEFT JOIN users u ON t.driver_id = u.id
+       WHERE t.status IN ('ASSIGNED', 'IN_PROGRESS', 'AT_DESTINATION', 'DELAYED', 'RETURNING')
+       ORDER BY CASE 
+         WHEN t.status IN ('IN_PROGRESS', 'AT_DESTINATION', 'DELAYED', 'RETURNING') THEN 1
+         WHEN t.status = 'ASSIGNED' THEN 2
+         ELSE 3
+       END, t.actual_start_time DESC
        LIMIT 1`
-    : `SELECT t.*, v.vehicle_number, v.vehicle_type, v.model as vehicle_model
+    : `SELECT t.*, 
+              t.id as trip_number,
+              t.planned_departure_time as planned_departure,
+              t.starting_location as starting_location_name,
+              t.starting_location as starting_location_id,
+              v.vehicle_number, 
+              v.vehicle_number as vehicle_plate, 
+              v.vehicle_type, 
+              v.model as vehicle_model,
+              u.name as driver_name
        FROM trips t
        JOIN vehicles v ON t.vehicle_id = v.id
-      WHERE t.driver_id = $1 AND t.status IN ('IN_PROGRESS', 'AT_DESTINATION', 'DELAYED', 'RETURNING')
-       ORDER BY t.actual_start_time DESC
+       LEFT JOIN users u ON t.driver_id = u.id
+       WHERE t.driver_id = $1 AND t.status IN ('ASSIGNED', 'IN_PROGRESS', 'AT_DESTINATION', 'DELAYED', 'RETURNING')
+       ORDER BY CASE 
+         WHEN t.status IN ('IN_PROGRESS', 'AT_DESTINATION', 'DELAYED', 'RETURNING') THEN 1
+         WHEN t.status = 'ASSIGNED' THEN 2
+         ELSE 3
+       END, t.actual_start_time DESC
        LIMIT 1`;
 
   const trip = (await query(sql, isManager ? [] : [driverId])).rows[0] as any;
@@ -82,7 +110,15 @@ const getActiveTripHandler = async (req: AuthenticatedRequest, res: Response) =>
     return res.json({ success: true, data: null, trip: null, message: 'No active trip found' });
   }
 
-  trip.stops = (await query(`SELECT * FROM trip_stops WHERE trip_id = $1 ORDER BY stop_number ASC`, [trip.id])).rows;
+  trip.stops = (await query(`
+    SELECT s.*, 
+           s.planned_arrival_time as planned_arrival,
+           s.geofence_radius_meters as geofence_radius
+    FROM trip_stops s
+    WHERE s.trip_id = $1 
+    ORDER BY s.stop_number ASC
+  `, [trip.id])).rows;
+
   for (const stop of trip.stops) {
     stop.activities = (await query(`SELECT * FROM activities WHERE stop_id = $1`, [stop.id])).rows;
     stop.photos = (await query(`SELECT * FROM photos WHERE stop_id = $1`, [stop.id])).rows;
@@ -107,18 +143,38 @@ const getTodayTripsHandler = async (req: AuthenticatedRequest, res: Response) =>
   const today = new Date().toISOString().split('T')[0];
 
   const sql = isManager
-    ? `SELECT t.*, v.vehicle_number, v.vehicle_type, v.model as vehicle_model
+    ? `SELECT t.*, 
+              t.id as trip_number,
+              t.planned_departure_time as planned_departure,
+              t.starting_location as starting_location_name,
+              t.starting_location as starting_location_id,
+              v.vehicle_number, 
+              v.vehicle_number as vehicle_plate, 
+              v.vehicle_type, 
+              v.model as vehicle_model,
+              u.name as driver_name
        FROM trips t
        JOIN vehicles v ON t.vehicle_id = v.id
-       WHERE (t.date = ? OR t.status IN ('ASSIGNED', 'IN_PROGRESS', 'AT_DESTINATION', 'DELAYED', 'RETURNING'))
+       LEFT JOIN users u ON t.driver_id = u.id
+       WHERE (t.date = $1 OR t.status IN ('ASSIGNED', 'IN_PROGRESS', 'AT_DESTINATION', 'DELAYED', 'RETURNING'))
        ORDER BY CASE 
          WHEN t.status IN ('IN_PROGRESS', 'AT_DESTINATION', 'DELAYED', 'RETURNING') THEN 1
          WHEN t.status = 'ASSIGNED' THEN 2
          ELSE 3
        END, t.planned_departure_time ASC`
-    : `SELECT t.*, v.vehicle_number, v.vehicle_type, v.model as vehicle_model
+    : `SELECT t.*, 
+              t.id as trip_number,
+              t.planned_departure_time as planned_departure,
+              t.starting_location as starting_location_name,
+              t.starting_location as starting_location_id,
+              v.vehicle_number, 
+              v.vehicle_number as vehicle_plate, 
+              v.vehicle_type, 
+              v.model as vehicle_model,
+              u.name as driver_name
        FROM trips t
        JOIN vehicles v ON t.vehicle_id = v.id
+       LEFT JOIN users u ON t.driver_id = u.id
       WHERE t.driver_id = $1 AND (t.date = $2 OR t.status IN ('ASSIGNED', 'IN_PROGRESS', 'AT_DESTINATION', 'DELAYED', 'RETURNING'))
        ORDER BY CASE 
          WHEN t.status IN ('IN_PROGRESS', 'AT_DESTINATION', 'DELAYED', 'RETURNING') THEN 1
@@ -131,10 +187,12 @@ const getTodayTripsHandler = async (req: AuthenticatedRequest, res: Response) =>
   // Attach stops summary to each trip
   for (const trip of trips) {
     trip.stops = (await query(`
-      SELECT id, stop_number, destination_name, address, planned_arrival_time, actual_arrival_time, actual_departure_time, status
-      FROM trip_stops
-      WHERE trip_id = $1
-      ORDER BY stop_number ASC
+      SELECT s.*, 
+             s.planned_arrival_time as planned_arrival,
+             s.geofence_radius_meters as geofence_radius
+      FROM trip_stops s
+      WHERE s.trip_id = $1
+      ORDER BY s.stop_number ASC
     `, [trip.id])).rows;
   }
 
@@ -172,7 +230,7 @@ router.get('/trips/:id', requireAuth, async (req: AuthenticatedRequest, res: Res
   trip.events = (await query(`SELECT * FROM trip_events WHERE trip_id = $1 ORDER BY timestamp ASC`, [tripId])).rows;
   trip.photos = (await query(`SELECT * FROM photos WHERE trip_id = $1 ORDER BY timestamp DESC`, [tripId])).rows;
 
-  return res.json({ trip });
+  return res.json({ success: true, data: trip, trip });
 });
 
 /**
@@ -222,7 +280,8 @@ router.post('/trips/:id/start', requireAuth, async (req: AuthenticatedRequest, r
     actual_start_time: now
   }).catch(err => console.error('[HoseXperts Sync] Trip start sync failed:', err));
 
-  return res.json({ message: 'Trip started successfully', actual_start_time: now, status: 'IN_PROGRESS' });
+  const updatedTrip = await getAuthorizedTrip(tripId, req.user!);
+  return res.json({ success: true, data: updatedTrip || trip, message: 'Trip started successfully', actual_start_time: now, status: 'IN_PROGRESS' });
 });
 
 /**
@@ -331,12 +390,14 @@ router.post('/trips/:id/custom-stop', requireAuth, async (req: AuthenticatedRequ
 });
 
 /**
- * POST /api/driver/trips/:id/stops/:stopId/arrive
- * Driver reaches a destination stop
+ * Stop Arrival Handler (Supports both /trips/:id/stops/:stopId/arrive and /stops/:stopId/arrive)
  */
-router.post('/trips/:id/stops/:stopId/arrive', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
-  const tripId = String(req.params.id);
-  const stopId = String(req.params.stopId);
+const handleStopArrival = async (req: AuthenticatedRequest, res: Response) => {
+  const stopId = String(req.params.stopId || req.params.id);
+  const stop = (await query<TripStop>(`SELECT * FROM trip_stops WHERE id = $1`, [stopId])).rows[0];
+  if (!stop) return res.status(404).json({ error: 'Stop not found' });
+
+  const tripId = req.params.id && req.params.stopId ? String(req.params.id) : stop.trip_id;
   const driverId = req.user!.id;
   const { latitude, longitude, gps_accuracy } = req.body;
 
@@ -346,9 +407,6 @@ router.post('/trips/:id/stops/:stopId/arrive', requireAuth, async (req: Authenti
   if (trip.status !== 'IN_PROGRESS' && trip.status !== 'DELAYED') {
     return res.status(400).json({ error: 'Trip must be in progress to record stop arrival' });
   }
-
-  const stop = (await query<TripStop>(`SELECT * FROM trip_stops WHERE id = $1 AND trip_id = $2`, [stopId, tripId])).rows[0];
-  if (!stop) return res.status(404).json({ error: 'Stop not found' });
 
   if (stop.status !== 'PENDING') {
     return res.status(400).json({ error: `Stop is already in status '${stop.status}'` });
@@ -434,34 +492,37 @@ router.post('/trips/:id/stops/:stopId/arrive', requireAuth, async (req: Authenti
     status: 'AT_DESTINATION'
   }).catch(err => console.error('[HoseXperts Sync] Trip status sync failed:', err));
 
+  const updatedStop = (await query<TripStop>(`SELECT * FROM trip_stops WHERE id = $1`, [stopId])).rows[0];
+
   return res.json({
+    success: true,
     message: 'Arrival recorded successfully',
     actual_arrival_time: nowIso,
     arrival_status: arrivalStatus,
     arrival_diff_minutes: diffMinutes,
-    geofence: geofenceResult
+    geofence: geofenceResult,
+    data: updatedStop,
+    stop: updatedStop
   });
-});
+};
+
+router.post('/trips/:id/stops/:stopId/arrive', requireAuth, handleStopArrival);
+router.post('/stops/:stopId/arrive', requireAuth, handleStopArrival);
 
 /**
- * POST /api/driver/trips/:id/stops/:stopId/complete-activity
- * Driver completes delivery/pickup/loading activity at stop
+ * Activity Completion Handler (Supports /trips/:id/stops/:stopId/complete-activity, /stops/:stopId/activity, etc.)
  */
-router.post('/api/driver/trips/:id/stops/:stopId/complete-activity', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
-  // mapped under /stops/:stopId/complete-activity
-});
+const handleCompleteActivity = async (req: AuthenticatedRequest, res: Response) => {
+  const stopId = String(req.params.stopId || req.params.id);
+  const stop = (await query<TripStop>(`SELECT * FROM trip_stops WHERE id = $1`, [stopId])).rows[0];
+  if (!stop) return res.status(404).json({ error: 'Stop not found' });
 
-router.post('/trips/:id/stops/:stopId/complete-activity', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
-  const tripId = String(req.params.id);
-  const stopId = String(req.params.stopId);
+  const tripId = req.params.id && req.params.stopId ? String(req.params.id) : stop.trip_id;
   const driverId = req.user!.id;
   const { activity_type, status, quantity, reference_number, recipient_name, notes, require_photo } = req.body;
 
   const trip = await getAuthorizedTrip(tripId, req.user!);
   if (!trip) return res.status(404).json({ error: 'Trip not found' });
-
-  const stop = (await query<TripStop>(`SELECT * FROM trip_stops WHERE id = $1 AND trip_id = $2`, [stopId, tripId])).rows[0];
-  if (!stop) return res.status(404).json({ error: 'Stop not found' });
 
   if (stop.status !== 'ARRIVED' && stop.status !== 'IN_PROGRESS') {
     return res.status(400).json({ error: 'You must arrive at the destination before completing activities' });
@@ -531,24 +592,36 @@ router.post('/trips/:id/stops/:stopId/complete-activity', requireAuth, async (re
     status: 'IN_PROGRESS'
   }).catch(err => console.error('[HoseXperts Sync] Stop status sync failed:', err));
 
-  return res.json({ message: 'Activity completed successfully', activityId });
-});
+  const updatedStop = (await query<TripStop>(`SELECT * FROM trip_stops WHERE id = $1`, [stopId])).rows[0];
+
+  return res.json({
+    success: true,
+    message: 'Activity completed successfully',
+    activityId,
+    data: updatedStop,
+    stop: updatedStop
+  });
+};
+
+router.post('/trips/:id/stops/:stopId/complete-activity', requireAuth, handleCompleteActivity);
+router.post('/trips/:id/stops/:stopId/activity', requireAuth, handleCompleteActivity);
+router.post('/stops/:stopId/complete-activity', requireAuth, handleCompleteActivity);
+router.post('/stops/:stopId/activity', requireAuth, handleCompleteActivity);
 
 /**
- * POST /api/driver/trips/:id/stops/:stopId/depart
- * Driver departs from destination stop
+ * Stop Departure Handler (Supports both /trips/:id/stops/:stopId/depart and /stops/:stopId/depart)
  */
-router.post('/trips/:id/stops/:stopId/depart', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
-  const tripId = String(req.params.id);
-  const stopId = String(req.params.stopId);
+const handleStopDeparture = async (req: AuthenticatedRequest, res: Response) => {
+  const stopId = String(req.params.stopId || req.params.id);
+  const stop = (await query<TripStop>(`SELECT * FROM trip_stops WHERE id = $1`, [stopId])).rows[0];
+  if (!stop) return res.status(404).json({ error: 'Stop not found' });
+
+  const tripId = req.params.id && req.params.stopId ? String(req.params.id) : stop.trip_id;
   const driverId = req.user!.id;
   const { latitude, longitude, gps_accuracy } = req.body;
 
   const trip = await getAuthorizedTrip(tripId, req.user!);
   if (!trip) return res.status(404).json({ error: 'Trip not found' });
-
-  const stop = (await query<TripStop>(`SELECT * FROM trip_stops WHERE id = $1 AND trip_id = $2`, [stopId, tripId])).rows[0];
-  if (!stop) return res.status(404).json({ error: 'Stop not found' });
 
   if (stop.status !== 'ARRIVED' && stop.status !== 'IN_PROGRESS') {
     return res.status(400).json({ error: 'Cannot depart a stop that has not been arrived at' });
@@ -598,12 +671,20 @@ router.post('/trips/:id/stops/:stopId/depart', requireAuth, async (req: Authenti
     status: 'IN_PROGRESS'
   }).catch(err => console.error('[HoseXperts Sync] Trip status sync failed:', err));
 
+  const updatedStop = (await query<TripStop>(`SELECT * FROM trip_stops WHERE id = $1`, [stopId])).rows[0];
+
   return res.json({
+    success: true,
     message: 'Departure recorded',
     allStopsCompleted: Number(remaining.count) === 0,
-    remainingStops: Number(remaining.count)
+    remainingStops: Number(remaining.count),
+    data: updatedStop,
+    stop: updatedStop
   });
-});
+};
+
+router.post('/trips/:id/stops/:stopId/depart', requireAuth, handleStopDeparture);
+router.post('/stops/:stopId/depart', requireAuth, handleStopDeparture);
 
 /**
  * POST /api/driver/trips/:id/delay
@@ -697,20 +778,25 @@ router.post('/trips/:id/delay', requireAuth, async (req: AuthenticatedRequest, r
 });
 
 /**
- * POST /api/driver/trips/:id/delay/:delayId/resolve
+ * POST /api/driver/trips/:id/delay/:delayId/resolve & POST /api/driver/delays/:delayId/resolve
  * Driver marks active delay resolved
  */
-router.post('/trips/:id/delay/:delayId/resolve', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
-  const tripId = String(req.params.id);
-  const delayId = String(req.params.delayId);
+const handleResolveDelay = async (req: AuthenticatedRequest, res: Response) => {
+  const delayId = String(req.params.delayId || req.params.id);
   const driverId = req.user!.id;
+
+  let delay = (await query(`SELECT * FROM delays WHERE id = $1`, [delayId])).rows[0] as any;
+  let tripId = req.params.id && req.params.delayId ? String(req.params.id) : (delay?.trip_id || '');
+
+  if (!tripId) {
+    const active = (await query<{ id: string }>(`SELECT id FROM trips WHERE driver_id = $1 AND status IN ('IN_PROGRESS', 'AT_DESTINATION', 'DELAYED', 'RETURNING') LIMIT 1`, [driverId])).rows[0];
+    if (active) tripId = active.id;
+  }
 
   const trip = await getAuthorizedTrip(tripId, req.user!);
   if (!trip) return res.status(404).json({ error: 'Trip not found or not assigned to you' });
 
-  let delay = (await query(`SELECT * FROM delays WHERE id = $1 AND trip_id = $2`, [delayId, tripId])).rows[0] as any;
   if (!delay) {
-    // Fallback: match latest unresolved delay for this trip
     delay = (await query(`SELECT * FROM delays WHERE trip_id = $1 AND is_resolved = 0 ORDER BY start_time DESC LIMIT 1`, [tripId])).rows[0] as any;
   }
   if (!delay) return res.status(404).json({ error: 'Delay record not found' });
@@ -778,18 +864,24 @@ router.post('/trips/:id/delay/:delayId/resolve', requireAuth, async (req: Authen
   }).catch(err => console.error('[HoseXperts Sync] Trip delay resolve status sync failed:', err));
 
   return res.json({
+    success: true,
     message: 'Delay resolved',
     duration_minutes: durationMinutes,
     total_delay_minutes: totalDelay,
-    status: newStatus
+    status: newStatus,
+    data: delay,
+    delay
   });
-});
+};
+
+router.post('/trips/:id/delay/:delayId/resolve', requireAuth, handleResolveDelay);
+router.post('/delays/:delayId/resolve', requireAuth, handleResolveDelay);
 
 /**
- * POST /api/driver/trips/:id/start-return
+ * POST /api/driver/trips/:id/start-return & POST /api/driver/trips/:id/return
  * Driver finishes all stops and starts journey back to base
  */
-router.post('/trips/:id/start-return', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+const handleStartReturn = async (req: AuthenticatedRequest, res: Response) => {
   const tripId = String(req.params.id);
   const driverId = req.user!.id;
   const { latitude, longitude, gps_accuracy } = req.body;
@@ -853,14 +945,18 @@ router.post('/trips/:id/start-return', requireAuth, async (req: AuthenticatedReq
     return_start_time: now
   }).catch(err => console.error('[HoseXperts Sync] Trip return sync failed:', err));
 
-  return res.json({ message: 'Return journey started', status: 'RETURNING' });
-});
+  const updatedTrip = await getAuthorizedTrip(tripId, req.user!);
+  return res.json({ success: true, data: updatedTrip || trip, message: 'Return journey started', status: 'RETURNING' });
+};
+
+router.post('/trips/:id/start-return', requireAuth, handleStartReturn);
+router.post('/trips/:id/return', requireAuth, handleStartReturn);
 
 /**
- * POST /api/driver/trips/:id/arrive-base
+ * POST /api/driver/trips/:id/arrive-base & POST /api/driver/trips/:id/base-arrival
  * Driver arrives at company base
  */
-router.post('/trips/:id/arrive-base', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+const handleArriveBase = async (req: AuthenticatedRequest, res: Response) => {
   const tripId = String(req.params.id);
   const driverId = req.user!.id;
   const { latitude, longitude, gps_accuracy } = req.body;
@@ -911,14 +1007,18 @@ router.post('/trips/:id/arrive-base', requireAuth, async (req: AuthenticatedRequ
     base_arrival_time: now
   }).catch(err => console.error('[HoseXperts Sync] Trip base arrival sync failed:', err));
 
-  return res.json({ message: 'Base arrival recorded', base_arrival_time: now });
-});
+  const updatedTrip = await getAuthorizedTrip(tripId, req.user!);
+  return res.json({ success: true, data: updatedTrip || trip, message: 'Base arrival recorded', base_arrival_time: now });
+};
+
+router.post('/trips/:id/arrive-base', requireAuth, handleArriveBase);
+router.post('/trips/:id/base-arrival', requireAuth, handleArriveBase);
 
 /**
  * POST /api/driver/trips/:id/complete
  * Driver completes the trip
  */
-router.post('/trips/:id/complete', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+const handleCompleteTrip = async (req: AuthenticatedRequest, res: Response) => {
   const tripId = String(req.params.id);
   const driverId = req.user!.id;
   const { latitude, longitude, gps_accuracy } = req.body;
@@ -938,9 +1038,28 @@ router.post('/trips/:id/complete', requireAuth, async (req: AuthenticatedRequest
     return res.status(400).json({ error: 'Cannot complete a trip that has not been started' });
   }
 
+  // Ensure all destination stops are completed before completing trip
+  const incompleteStops = (await query<{ count: string }>(`
+    SELECT COUNT(*)::text as count FROM trip_stops 
+    WHERE trip_id = $1 AND status NOT IN ('COMPLETED', 'SKIPPED', 'FAILED')
+  `, [tripId])).rows[0];
+
+  if (Number(incompleteStops?.count || 0) > 0) {
+    return res.status(400).json({ 
+      error: `Cannot complete trip: ${incompleteStops.count} destination stop(s) remain incomplete or un-departed` 
+    });
+  }
+
+  // Ensure base arrival has been recorded before completing trip
+  if (!trip.base_arrival_time && trip.status !== 'RETURNING') {
+    return res.status(400).json({ 
+      error: 'Cannot complete trip without recording arrival at base depot first' 
+    });
+  }
+
   const now = new Date().toISOString();
 
-  // If base arrival not explicitly recorded, auto-record it now upon trip completion
+  // If base arrival not explicitly recorded but trip was in RETURNING status, record it now
   if (!trip.base_arrival_time) {
     await query(`UPDATE trips SET base_arrival_time = $1 WHERE id = $2`, [now, tripId]);
   }
@@ -986,12 +1105,17 @@ router.post('/trips/:id/complete', requireAuth, async (req: AuthenticatedRequest
     calculated_distance_km: calculatedDistance
   }).catch(err => console.error('[HoseXperts Sync] Trip complete sync failed:', err));
 
+  const updatedTrip = await getAuthorizedTrip(tripId, req.user!);
   return res.json({
+    success: true,
     message: 'Trip completed successfully',
     completion_time: now,
     calculated_distance_km: calculatedDistance,
-    status: 'COMPLETED'
+    status: 'COMPLETED',
+    data: updatedTrip || trip
   });
-});
+};
+
+router.post('/trips/:id/complete', requireAuth, handleCompleteTrip);
 
 export default router;

@@ -234,3 +234,227 @@ fun GeofenceStatusBanner(
         }
     }
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// IN-APP AUTO-UPDATE DIALOG — Prompt, Download Progress, and Install Trigger
+// ─────────────────────────────────────────────────────────────────────────
+@Composable
+fun AppUpdateDialog(
+    updateInfo: AppVersionInfo,
+    isDownloading: Boolean,
+    downloadProgress: Float,
+    downloadedBytes: Long = 0,
+    totalBytes: Long = 0,
+    downloadError: String? = null,
+    isReadyToInstall: Boolean = false,
+    onStartDownload: () -> Unit,
+    onInstall: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = {
+            if (!isDownloading && !updateInfo.mandatoryUpdate) {
+                onDismiss()
+            }
+        },
+        containerColor = MaterialTheme.colorScheme.surface,
+        icon = {
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(CircleShape)
+                    .background(HoseXpertsBlue.copy(alpha = 0.14f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = when {
+                        isReadyToInstall -> Icons.Default.CheckCircle
+                        isDownloading -> Icons.Default.Download
+                        else -> Icons.Default.SystemUpdate
+                    },
+                    contentDescription = "Update Icon",
+                    tint = if (isReadyToInstall) StatusGreen else HoseXpertsBlue,
+                    modifier = Modifier.size(30.dp)
+                )
+            }
+        },
+        title = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = when {
+                        isReadyToInstall -> "Update Ready to Install"
+                        isDownloading -> "Downloading Update..."
+                        else -> "App Update Available"
+                    },
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = HoseXpertsBlue.copy(alpha = 0.12f)
+                ) {
+                    Text(
+                        text = "Version ${updateInfo.version} (Build ${updateInfo.versionCode})",
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = HoseXpertsBlue
+                    )
+                }
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                if (downloadError != null) {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = StatusRed.copy(alpha = 0.12f),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(Icons.Default.ErrorOutline, contentDescription = null, tint = StatusRed)
+                            Text(
+                                text = downloadError,
+                                fontSize = 12.sp,
+                                color = StatusRed
+                            )
+                        }
+                    }
+                }
+
+                if (isDownloading) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        if (downloadProgress >= 0f) {
+                            LinearProgressIndicator(
+                                progress = { downloadProgress },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(8.dp)
+                                    .clip(RoundedCornerShape(4.dp)),
+                                color = HoseXpertsBlue,
+                                trackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = "${(downloadProgress * 100).toInt()}%",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = HoseXpertsBlue
+                                )
+                                if (totalBytes > 0) {
+                                    val mbDownloaded = downloadedBytes.toDouble() / (1024 * 1024)
+                                    val mbTotal = totalBytes.toDouble() / (1024 * 1024)
+                                    Text(
+                                        text = "%.1f / %.1f MB".format(mbDownloaded, mbTotal),
+                                        fontSize = 11.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        } else {
+                            LinearProgressIndicator(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(8.dp)
+                                    .clip(RoundedCornerShape(4.dp)),
+                                color = HoseXpertsBlue,
+                                trackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
+                            )
+                            Text(
+                                text = "Connecting and downloading package...",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                } else if (isReadyToInstall) {
+                    Text(
+                        text = "The latest APK has been successfully downloaded. Tap 'Install Now' to complete the update without losing any trip data.",
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    Text(
+                        text = "A new version of TruckTracker is available with real-time operational upgrades:",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    val notes = updateInfo.releaseNotes ?: "• Live delay & delivery timing synchronization\n• In-app automatic updates (OTA)\n• Enhanced GPS tracking & map routing"
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = notes,
+                            fontSize = 12.sp,
+                            lineHeight = 18.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(10.dp)
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (isReadyToInstall) {
+                        onInstall()
+                    } else if (!isDownloading) {
+                        onStartDownload()
+                    }
+                },
+                enabled = !isDownloading,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (isReadyToInstall) StatusGreen else HoseXpertsBlue
+                ),
+                shape = RoundedCornerShape(10.dp)
+            ) {
+                Text(
+                    text = when {
+                        isReadyToInstall -> "Install Now"
+                        downloadError != null -> "Retry Download"
+                        else -> "Update Now"
+                    },
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        },
+        dismissButton = {
+            if (!updateInfo.mandatoryUpdate && !isDownloading) {
+                TextButton(
+                    onClick = onDismiss,
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text(
+                        text = "Later",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+    )
+}
+

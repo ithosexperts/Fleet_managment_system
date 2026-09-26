@@ -47,12 +47,15 @@ class DriverRepository(
     suspend fun getAssignedTrip(): Result<Trip?> = withContext(Dispatchers.IO) {
         try {
             val res = apiService.getAssignedTrip()
+            android.util.Log.d("DriverRepo", "getAssignedTrip code=${res.code()} hasData=${res.body()?.data != null} trip=${res.body()?.data?.id}")
             if (res.isSuccessful) {
                 Result.success(res.body()?.data)
             } else {
+                android.util.Log.w("DriverRepo", "getAssignedTrip failed: ${res.code()}")
                 Result.failure(Exception("Failed to load assigned trip"))
             }
         } catch (e: Exception) {
+            android.util.Log.e("DriverRepo", "getAssignedTrip exception", e)
             Result.failure(e)
         }
     }

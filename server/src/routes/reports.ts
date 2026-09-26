@@ -313,6 +313,11 @@ router.get('/periodic', requireAuth, requireRole('MANAGER'), async (req, res) =>
   return res.json({
     period,
     daysAnalyzed: days,
+    totalTrips,
+    completedTrips,
+    activeTrips,
+    delayedTrips,
+    cancelledTrips,
     overview: {
       totalTrips,
       completedTrips,

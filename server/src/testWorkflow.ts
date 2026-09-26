@@ -54,27 +54,27 @@ async function runTests() {
         date: today,
         driver_id: testDriver.user_id,
         vehicle_id: availableVehicle.id,
-        starting_location: 'Company Main Logistics Hub',
-        starting_latitude: 23.2500,
-        starting_longitude: 77.4100,
+        starting_location: 'HoseXperts Central Depot, Okhla Phase III',
+        starting_latitude: 28.5355,
+        starting_longitude: 77.2680,
         purpose: 'Multi-Stop Supply Dispatch',
         reference_number: 'TEST-DISP-9901',
         planned_departure_time: '09:00',
         notes: 'Automated test trip multi-destination validation',
         stops: [
           {
-            destination_name: 'Alpha Hub',
-            address: 'Industrial Plot 1',
-            latitude: 23.2550,
-            longitude: 77.4150,
+            destination_name: 'Lajpat Nagar Central Transit Hub',
+            address: 'Ring Road Commercial Complex, Lajpat Nagar, New Delhi',
+            latitude: 28.5677,
+            longitude: 77.2433,
             geofence_radius_meters: 200,
             planned_arrival_time: '09:30'
           },
           {
-            destination_name: 'Beta Depot',
-            address: 'Highway Commercial Zone',
-            latitude: 23.2700,
-            longitude: 77.4300,
+            destination_name: 'Mayur Vihar Phase-1 Distribution Facility',
+            address: 'Pocket 1, Commercial Sector, Mayur Vihar, East Delhi',
+            latitude: 28.6015,
+            longitude: 77.2940,
             geofence_radius_meters: 200,
             planned_arrival_time: '10:45'
           }
@@ -112,8 +112,8 @@ async function runTests() {
         Authorization: `Bearer ${drvToken}`
       },
       body: JSON.stringify({
-        latitude: 23.2501,
-        longitude: 77.4102,
+        latitude: 28.5356,
+        longitude: 77.2681,
         gps_accuracy: 5.0
       })
     });
@@ -127,7 +127,7 @@ async function runTests() {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${drvToken}`
       },
-      body: JSON.stringify({ latitude: 23.2500, longitude: 77.4100 })
+      body: JSON.stringify({ latitude: 28.5355, longitude: 77.2680 })
     });
     assert(earlyCompleteRes.status === 400, 'Business Rule Guard: Cannot Complete Trip Without Base Arrival');
 
@@ -139,8 +139,8 @@ async function runTests() {
         Authorization: `Bearer ${drvToken}`
       },
       body: JSON.stringify({
-        latitude: 23.2551,
-        longitude: 77.4151,
+        latitude: 28.5678,
+        longitude: 77.2434,
         gps_accuracy: 6.0
       })
     });
@@ -173,8 +173,8 @@ async function runTests() {
         Authorization: `Bearer ${drvToken}`
       },
       body: JSON.stringify({
-        latitude: 23.2552,
-        longitude: 77.4152,
+        latitude: 28.5679,
+        longitude: 77.2435,
         gps_accuracy: 5.5
       })
     });
@@ -192,8 +192,8 @@ async function runTests() {
         reason: 'Traffic',
         description: 'Level crossing railway gate closed',
         stopId: stop2.id,
-        latitude: 23.2620,
-        longitude: 77.4200,
+        latitude: 28.5800,
+        longitude: 77.2600,
         gps_accuracy: 10.0
       })
     });
@@ -216,7 +216,7 @@ async function runTests() {
     await fetch(`${BASE_URL}/driver/trips/${tripId}/stops/${stop2.id}/arrive`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${drvToken}` },
-      body: JSON.stringify({ latitude: 23.2701, longitude: 77.4302, gps_accuracy: 8.0 })
+      body: JSON.stringify({ latitude: 28.6016, longitude: 77.2941, gps_accuracy: 8.0 })
     });
     await fetch(`${BASE_URL}/driver/trips/${tripId}/stops/${stop2.id}/complete-activity`, {
       method: 'POST',
@@ -226,7 +226,7 @@ async function runTests() {
     const departStop2Res = await fetch(`${BASE_URL}/driver/trips/${tripId}/stops/${stop2.id}/depart`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${drvToken}` },
-      body: JSON.stringify({ latitude: 23.2705, longitude: 77.4305 })
+      body: JSON.stringify({ latitude: 28.6017, longitude: 77.2942 })
     });
     const departStop2Data = await departStop2Res.json();
     assert(departStop2Data.allStopsCompleted === true, 'All Destination Stops Completed');
@@ -235,7 +235,7 @@ async function runTests() {
     const returnRes = await fetch(`${BASE_URL}/driver/trips/${tripId}/start-return`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${drvToken}` },
-      body: JSON.stringify({ latitude: 23.2700, longitude: 77.4300 })
+      body: JSON.stringify({ latitude: 28.6015, longitude: 77.2940 })
     });
     assert(returnRes.status === 200, 'Driver Starts Return Journey (RETURNING)');
 
@@ -243,7 +243,7 @@ async function runTests() {
     const baseArriveRes = await fetch(`${BASE_URL}/driver/trips/${tripId}/arrive-base`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${drvToken}` },
-      body: JSON.stringify({ latitude: 23.2500, longitude: 77.4100 })
+      body: JSON.stringify({ latitude: 28.5355, longitude: 77.2680 })
     });
     assert(baseArriveRes.status === 200, 'Driver Arrives Back at Base');
 
@@ -251,7 +251,7 @@ async function runTests() {
     const completeTripRes = await fetch(`${BASE_URL}/driver/trips/${tripId}/complete`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${drvToken}` },
-      body: JSON.stringify({ latitude: 23.2500, longitude: 77.4100 })
+      body: JSON.stringify({ latitude: 28.5355, longitude: 77.2680 })
     });
     const completeTripData = await completeTripRes.json();
     assert(completeTripRes.status === 200 && completeTripData.status === 'COMPLETED', 'Driver Completes Entire Multi-Stop Trip');

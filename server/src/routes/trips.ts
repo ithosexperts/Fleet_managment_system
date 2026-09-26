@@ -118,7 +118,37 @@ router.get('/', requireAuth, requireRole('MANAGER'), async (req, res) => {
   sql += ` ORDER BY t.created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
   params.push(parseInt(limit as string, 10), parseInt(offset as string, 10));
 
-  const trips = (await query(sql, params)).rows;
+  const trips = (await query(sql, params)).rows as any[];
+  if (trips.length > 0) {
+    try {
+      const tripIds = trips.map((t) => t.id);
+      const placeholders = tripIds.map((_, i) => `$${i + 1}`).join(',');
+      const stopsRows = (await query(`SELECT * FROM trip_stops WHERE trip_id IN (${placeholders}) ORDER BY stop_number ASC`, tripIds)).rows as any[];
+      const stopsByTrip = new Map<string, any[]>();
+      for (const st of stopsRows) {
+        if (!stopsByTrip.has(st.trip_id)) {
+          stopsByTrip.set(st.trip_id, []);
+        }
+        stopsByTrip.get(st.trip_id)!.push(st);
+      }
+
+      const delaysRows = (await query(`SELECT * FROM delays WHERE trip_id IN (${placeholders}) ORDER BY start_time ASC`, tripIds)).rows as any[];
+      const delaysByTrip = new Map<string, any[]>();
+      for (const d of delaysRows) {
+        if (!delaysByTrip.has(d.trip_id)) {
+          delaysByTrip.set(d.trip_id, []);
+        }
+        delaysByTrip.get(d.trip_id)!.push(d);
+      }
+
+      for (const trip of trips) {
+        trip.stops = stopsByTrip.get(trip.id) || [];
+        trip.delays = delaysByTrip.get(trip.id) || [];
+      }
+    } catch (err) {
+      console.warn('[Trips Route] Failed to batch load stops or delays for trips:', err);
+    }
+  }
   return res.json({ trips });
 });
 

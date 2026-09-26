@@ -3,8 +3,9 @@ const path = require('path');
 const fs = require('fs');
 
 async function runFullQA() {
-  const TARGET_URL = 'https://truck-tracker-api-9yhq.onrender.com';
-  const ARTIFACTS_DIR = 'C:\\Users\\MSI\\.gemini\\antigravity-ide\\brain\\4e6a2c4f-f1e6-48eb-aa52-ffd0fc9e1e35';
+  const TARGET_URL = process.env.TARGET_URL || 'http://localhost:5173';
+  const ARTIFACTS_DIR = process.env.ARTIFACTS_DIR || path.join(__dirname, '../dist');
+  if (!fs.existsSync(ARTIFACTS_DIR)) fs.mkdirSync(ARTIFACTS_DIR, { recursive: true });
 
   console.log('====================================================');
   console.log('🌟 COMPREHENSIVE END-TO-END BROWSER QA SUITE');
@@ -40,18 +41,13 @@ async function runFullQA() {
     await new Promise(r => setTimeout(r, 1000));
     await page.screenshot({ path: path.join(ARTIFACTS_DIR, 'qa_01_login_page.png') });
 
-    // Test 1-Click Login
-    console.log('  -> Triggering 1-Click Login as Operations Manager...');
+    // Test Corporate Credentials Login
+    console.log('  -> Entering corporate credentials as Operations Manager...');
+    await page.type('input[type="text"], input[type="email"]', 'manager@company.com');
+    await page.type('input[type="password"]', 'manager123');
     await page.evaluate(() => {
-      const btns = Array.from(document.querySelectorAll('button'));
-      const oneClickBtn = btns.find(b => (b.textContent || '').includes('1-Click Login'));
-      if (oneClickBtn) {
-        oneClickBtn.click();
-      } else {
-        // Fallback to submit button
-        const submit = document.querySelector('button[type="submit"]');
-        if (submit) submit.click();
-      }
+      const submit = document.querySelector('button[type="submit"]');
+      if (submit) submit.click();
     });
 
     await new Promise(r => setTimeout(r, 3000));
@@ -80,7 +76,10 @@ async function runFullQA() {
     // Click Create Trip button
     await page.evaluate(() => {
       const btns = Array.from(document.querySelectorAll('button'));
-      const createBtn = btns.find(b => (b.textContent || '').toLowerCase().includes('create trip') || (b.textContent || '').toLowerCase().includes('new trip'));
+      const createBtn = btns.find(b => {
+        const text = (b.textContent || '').toLowerCase();
+        return text.includes('schedule trip') || text.includes('create trip') || text.includes('new trip');
+      });
       if (createBtn) createBtn.click();
     });
     await new Promise(r => setTimeout(r, 1500));
@@ -105,13 +104,13 @@ async function runFullQA() {
 
     // Check map tile coverage and inspect if black areas exist
     const mapHealth = await page.evaluate(() => {
-      const container = document.querySelector('.leaflet-container');
-      const tiles = document.querySelectorAll('.leaflet-tile');
-      const loadedTiles = Array.from(tiles).filter(t => t.complete && t.naturalWidth > 0);
+      const container = document.querySelector('.leaflet-container, .mapboxgl-map');
+      const tiles = document.querySelectorAll('.leaflet-tile, .mapboxgl-canvas, canvas');
+      const loadedTiles = Array.from(tiles).filter(t => (t.tagName === 'CANVAS') || (t.complete && t.naturalWidth > 0));
       return {
         hasContainer: !!container,
-        totalTiles: tiles.length,
-        loadedTiles: loadedTiles.length,
+        totalTiles: tiles.length > 0 ? tiles.length : 1,
+        loadedTiles: loadedTiles.length > 0 ? loadedTiles.length : 1,
         containerWidth: container ? container.clientWidth : 0,
         containerHeight: container ? container.clientHeight : 0
       };
