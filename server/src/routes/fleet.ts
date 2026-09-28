@@ -280,7 +280,7 @@ router.put('/vehicles/:id', requireAuth, requireRole('MANAGER'), async (req: Aut
       SET vehicle_number = COALESCE(UPPER($1), vehicle_number),
           vehicle_type = COALESCE($2, vehicle_type),
           model = COALESCE($3, model),
-          assigned_driver_id = CASE WHEN $4 IS NOT NULL THEN $5 ELSE assigned_driver_id END,
+          assigned_driver_id = CASE WHEN $4::text IS NOT NULL THEN $5::text ELSE assigned_driver_id END,
           status = COALESCE($6, status),
           notes = COALESCE($7, notes),
           fleet_unit_id = COALESCE($8, fleet_unit_id),
