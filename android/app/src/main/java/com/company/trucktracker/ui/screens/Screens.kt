@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -497,7 +498,7 @@ fun LoginScreen(
                         Spacer(modifier = Modifier.width(10.dp))
                     } else {
                         Icon(
-                            Icons.Default.Login,
+                            Icons.AutoMirrored.Filled.Login,
                             contentDescription = null,
                             modifier = Modifier.size(20.dp)
                         )
@@ -720,6 +721,7 @@ fun DriverHomeScreen(
     driverName: String,
     activeTrip: Trip?,
     pendingQueueCount: Int,
+    completedTodayCount: Int = 0,
     updateInfo: AppVersionInfo? = null,
     onDownloadUpdate: () -> Unit = {},
     isDarkTheme: Boolean = true,
@@ -728,6 +730,8 @@ fun DriverHomeScreen(
     onStartTrip: () -> Unit,
     onContinueTrip: () -> Unit,
     onReportDispute: () -> Unit = {},
+    onOpenMap: () -> Unit = {},
+    onOpenEmergency: () -> Unit = {},
     onViewTrips: () -> Unit,
     onViewHistory: () -> Unit,
     onViewProfile: () -> Unit,
@@ -738,7 +742,7 @@ fun DriverHomeScreen(
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
-            // ── Bottom Navigation Bar ──
+            // ── Bottom Navigation Bar (5 tabs matching Web Control Tower) ──
             NavigationBar(
                 containerColor = MaterialTheme.colorScheme.surface,
                 tonalElevation = 0.dp,
@@ -752,7 +756,7 @@ fun DriverHomeScreen(
                     selected = true,
                     onClick = {},
                     icon = { Icon(Icons.Default.Home, contentDescription = null) },
-                    label = { Text("Home", fontSize = 11.sp) },
+                    label = { Text("Home", fontSize = 10.sp) },
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = HoseXpertsBlue,
                         selectedTextColor = HoseXpertsBlue,
@@ -765,7 +769,7 @@ fun DriverHomeScreen(
                     selected = false,
                     onClick = onViewTrips,
                     icon = { Icon(Icons.Default.Route, contentDescription = null) },
-                    label = { Text(AppStrings.todayTrips(lang), fontSize = 11.sp) },
+                    label = { Text(AppStrings.todayTrips(lang), fontSize = 10.sp, maxLines = 1) },
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = HoseXpertsBlue,
                         selectedTextColor = HoseXpertsBlue,
@@ -776,22 +780,35 @@ fun DriverHomeScreen(
                 )
                 NavigationBarItem(
                     selected = false,
-                    onClick = onViewHistory,
-                    icon = { Icon(Icons.Default.History, contentDescription = null) },
-                    label = { Text(AppStrings.history(lang), fontSize = 11.sp) },
+                    onClick = onOpenMap,
+                    icon = { Icon(Icons.Default.Map, contentDescription = null) },
+                    label = { Text("Map", fontSize = 10.sp) },
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = HoseXpertsBlue,
                         selectedTextColor = HoseXpertsBlue,
                         indicatorColor = HoseXpertsBlue.copy(alpha = 0.12f),
                         unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
                         unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                )
+                NavigationBarItem(
+                    selected = false,
+                    onClick = onOpenEmergency,
+                    icon = { Icon(Icons.Default.Warning, contentDescription = null, tint = StatusRed) },
+                    label = { Text("SOS", fontSize = 10.sp, color = StatusRed) },
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = StatusRed,
+                        selectedTextColor = StatusRed,
+                        indicatorColor = StatusRed.copy(alpha = 0.12f),
+                        unselectedIconColor = StatusRed,
+                        unselectedTextColor = StatusRed
                     )
                 )
                 NavigationBarItem(
                     selected = false,
                     onClick = onViewProfile,
                     icon = { Icon(Icons.Default.AccountCircle, contentDescription = null) },
-                    label = { Text(AppStrings.profile(lang), fontSize = 11.sp) },
+                    label = { Text(AppStrings.profile(lang), fontSize = 10.sp, maxLines = 1) },
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = HoseXpertsBlue,
                         selectedTextColor = HoseXpertsBlue,
@@ -956,6 +973,7 @@ fun DriverHomeScreen(
                         onStart = onStartTrip,
                         onContinue = onContinueTrip,
                         onReportDispute = onReportDispute,
+                        onOpenMap = onOpenMap,
                         lang = lang
                     )
                 }
@@ -1012,7 +1030,7 @@ fun DriverHomeScreen(
                         modifier = Modifier.weight(1f),
                         icon = Icons.Default.CheckCircle,
                         label = "Today Done",
-                        value = "—",
+                        value = "$completedTodayCount",
                         tint = StatusGreen
                     )
                     QuickStatCard(
@@ -1033,7 +1051,14 @@ fun DriverHomeScreen(
 // COMPONENT: Active Trip Card (hero card on home screen)
 // ─────────────────────────────────────────────────────────────────────────
 @Composable
-fun ActiveTripCard(trip: Trip, onStart: () -> Unit, onContinue: () -> Unit, onReportDispute: () -> Unit = {}, lang: AppLanguage) {
+fun ActiveTripCard(
+    trip: Trip,
+    onStart: () -> Unit,
+    onContinue: () -> Unit,
+    onReportDispute: () -> Unit = {},
+    onOpenMap: () -> Unit = {},
+    lang: AppLanguage
+) {
     val stops = trip.stops ?: emptyList()
     val completedCount = stops.count { it.status == StopStatus.COMPLETED }
     val currentStop = stops.firstOrNull { it.status != StopStatus.COMPLETED }
@@ -1181,10 +1206,10 @@ fun ActiveTripCard(trip: Trip, onStart: () -> Unit, onContinue: () -> Unit, onRe
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Call Dispatch & Report Dispute Actions
+            // Call Dispatch, Live Map & Report Dispute Actions
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 OutlinedButton(
                     onClick = {
@@ -1193,22 +1218,36 @@ fun ActiveTripCard(trip: Trip, onStart: () -> Unit, onContinue: () -> Unit, onRe
                     },
                     modifier = Modifier.weight(1f).height(44.dp),
                     shape = RoundedCornerShape(10.dp),
+                    contentPadding = PaddingValues(horizontal = 4.dp),
                     border = BorderStroke(1.dp, HoseXpertsBlue)
                 ) {
-                    Icon(Icons.Default.Phone, contentDescription = null, tint = HoseXpertsBlue, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("CALL DISPATCH", color = HoseXpertsBlue, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Icon(Icons.Default.Phone, contentDescription = null, tint = HoseXpertsBlue, modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("DISPATCH", color = HoseXpertsBlue, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                }
+
+                OutlinedButton(
+                    onClick = onOpenMap,
+                    modifier = Modifier.weight(1f).height(44.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    contentPadding = PaddingValues(horizontal = 4.dp),
+                    border = BorderStroke(1.dp, HoseXpertsBlueLight)
+                ) {
+                    Icon(Icons.Default.Map, contentDescription = null, tint = HoseXpertsBlueLight, modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("LIVE MAP", color = HoseXpertsBlueLight, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                 }
 
                 OutlinedButton(
                     onClick = onReportDispute,
                     modifier = Modifier.weight(1f).height(44.dp),
                     shape = RoundedCornerShape(10.dp),
+                    contentPadding = PaddingValues(horizontal = 4.dp),
                     border = BorderStroke(1.dp, StatusAmber)
                 ) {
-                    Icon(Icons.Default.ReportProblem, contentDescription = null, tint = StatusAmber, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("DISPUTE/ISSUE", color = StatusAmber, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Icon(Icons.Default.ReportProblem, contentDescription = null, tint = StatusAmber, modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("DISPUTE", color = StatusAmber, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -1274,7 +1313,7 @@ fun TodaysTripsScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onSurface)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onSurface)
                     }
                     Spacer(modifier = Modifier.width(4.dp))
                     Column {
@@ -1376,7 +1415,7 @@ fun TripDetailScreen(
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         IconButton(onClick = onBack) {
-                            Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onSurface)
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onSurface)
                         }
                         Column {
                             Text(trip.displayTripNumber, color = MaterialTheme.colorScheme.onSurface, fontSize = 17.sp, fontWeight = FontWeight.Bold)
@@ -1564,7 +1603,7 @@ fun StopDetailScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onSurface)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onSurface)
                     }
                     Text("Stop ${stop.stop_number} Details", color = MaterialTheme.colorScheme.onSurface, fontSize = 17.sp, fontWeight = FontWeight.Bold)
                 }
@@ -1597,7 +1636,7 @@ fun StopDetailScreen(
             item {
                 when (stop.status) {
                     StopStatus.PENDING -> PrimaryActionButton(text = "ARRIVE AT STOP", onClick = onArrive, icon = Icons.Default.LocationOn)
-                    StopStatus.ARRIVED -> PrimaryActionButton(text = "COMPLETE ACTIVITY", onClick = onOpenActivity, icon = Icons.Default.Assignment)
+                    StopStatus.ARRIVED -> PrimaryActionButton(text = "COMPLETE ACTIVITY", onClick = onOpenActivity, icon = Icons.AutoMirrored.Filled.Assignment)
                     StopStatus.IN_PROGRESS -> PrimaryActionButton(text = "DEPART STOP", onClick = onDepart, icon = Icons.Default.DriveEta)
                     StopStatus.COMPLETED -> {
                         Surface(
@@ -1637,7 +1676,7 @@ fun ArrivalScreen(
         topBar = {
             Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 2.dp) {
                 Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onSurface) }
+                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onSurface) }
                     Column {
                         Text("Verify Arrival", color = MaterialTheme.colorScheme.onSurface, fontSize = 17.sp, fontWeight = FontWeight.Bold)
                         Text("${stop.destination_name}", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
@@ -1712,7 +1751,7 @@ fun ActivityScreen(
         topBar = {
             Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 2.dp) {
                 Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onSurface) }
+                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onSurface) }
                     Text("Complete ${activity?.activity_type ?: "Activity"}", color = MaterialTheme.colorScheme.onSurface, fontSize = 17.sp, fontWeight = FontWeight.Bold)
                 }
             }
@@ -1853,7 +1892,7 @@ fun PhotoReviewScreen(
             Spacer(modifier = Modifier.height(16.dp))
             Surface(shape = RoundedCornerShape(10.dp), color = HoseXpertsBlue.copy(alpha = 0.1f)) {
                 Row(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Label, contentDescription = null, tint = HoseXpertsBlue, modifier = Modifier.size(16.dp))
+                    Icon(Icons.AutoMirrored.Filled.Label, contentDescription = null, tint = HoseXpertsBlue, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Category: $selectedCategory", color = HoseXpertsBlue, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                 }
@@ -1958,7 +1997,7 @@ fun DelayReportScreen(onReportSubmit: (reason: String, notes: String) -> Unit, o
                     )
                 )
                 Spacer(modifier = Modifier.height(16.dp))
-                PrimaryActionButton(text = "SUBMIT DELAY REPORT", onClick = { onReportSubmit(selectedReason, notes) }, icon = Icons.Default.Send)
+                PrimaryActionButton(text = "SUBMIT DELAY REPORT", onClick = { onReportSubmit(selectedReason, notes) }, icon = Icons.AutoMirrored.Filled.Send)
             }
         }
     }
@@ -1999,7 +2038,7 @@ fun ReturnJourneyScreen(onStartReturn: () -> Unit, onBack: () -> Unit) {
         topBar = {
             Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 2.dp) {
                 Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onSurface) }
+                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onSurface) }
                     Text("Return Journey", color = MaterialTheme.colorScheme.onSurface, fontSize = 17.sp, fontWeight = FontWeight.Bold)
                 }
             }
@@ -2088,7 +2127,7 @@ fun TripHistoryScreen(history: List<Trip>, onBack: () -> Unit) {
         topBar = {
             Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 2.dp) {
                 Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onSurface) }
+                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onSurface) }
                     Column {
                         Text("Completed Trip History", color = MaterialTheme.colorScheme.onSurface, fontSize = 17.sp, fontWeight = FontWeight.Bold)
                         Text("${history.size} trips completed", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
@@ -2147,6 +2186,7 @@ fun TripHistoryScreen(history: List<Trip>, onBack: () -> Unit) {
 @Composable
 fun ProfileScreen(
     user: User?,
+    activeTrip: Trip? = null,
     selectedLanguage: AppLanguage = AppLanguage.ENGLISH,
     onLanguageChanged: (AppLanguage) -> Unit = {},
     isDarkTheme: Boolean = false,
@@ -2157,6 +2197,8 @@ fun ProfileScreen(
     onBack: () -> Unit
 ) {
     var showHelpGuidelines by remember { mutableStateOf(false) }
+    var showVehicleInfo by remember { mutableStateOf(false) }
+    var showVehiclePapers by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
     Scaffold(
@@ -2166,7 +2208,7 @@ fun ProfileScreen(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onSurface) }
+                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onSurface) }
                     Text("Vehicle Papers & Menu", color = MaterialTheme.colorScheme.onSurface, fontSize = 17.sp, fontWeight = FontWeight.Bold)
                 }
             }
@@ -2234,7 +2276,7 @@ fun ProfileScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { /* Vehicle papers */ }
+                                .clickable { showVehiclePapers = true }
                                 .padding(16.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
@@ -2254,12 +2296,12 @@ fun ProfileScreen(
                             Icon(Icons.Default.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
 
-                        Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
 
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { /* Vehicle Info */ }
+                                .clickable { showVehicleInfo = true }
                                 .padding(16.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
@@ -2279,7 +2321,7 @@ fun ProfileScreen(
                             Icon(Icons.Default.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
 
-                        Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
 
                         Row(
                             modifier = Modifier
@@ -2294,7 +2336,7 @@ fun ProfileScreen(
                                     modifier = Modifier.size(36.dp).clip(RoundedCornerShape(8.dp)).background(StatusAmber.copy(alpha = 0.12f)),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(Icons.Default.HelpOutline, contentDescription = null, tint = StatusAmber, modifier = Modifier.size(20.dp))
+                                    Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = null, tint = StatusAmber, modifier = Modifier.size(20.dp))
                                 }
                                 Column {
                                     Text("Help & Support", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, fontSize = 14.sp)
@@ -2362,7 +2404,7 @@ fun ProfileScreen(
                             }
                         }
 
-                        Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
 
                         // App Theme
                         Row(
@@ -2387,7 +2429,7 @@ fun ProfileScreen(
                             }
                         }
 
-                        Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
 
                         // Offline Storage Sync
                         Row(
@@ -2442,7 +2484,7 @@ fun ProfileScreen(
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = StatusRed)
                 ) {
-                    Icon(Icons.Default.ExitToApp, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                    Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("LOGOUT", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp)
                 }
@@ -2489,6 +2531,65 @@ fun ProfileScreen(
             containerColor = MaterialTheme.colorScheme.surface
         )
     }
+
+    // Vehicle Information Dialog
+    if (showVehicleInfo) {
+        AlertDialog(
+            onDismissRequest = { showVehicleInfo = false },
+            confirmButton = {
+                Button(
+                    onClick = { showVehicleInfo = false },
+                    colors = ButtonDefaults.buttonColors(containerColor = HoseXpertsBlue),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text("Close") }
+            },
+            title = {
+                Text("Vehicle Information", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = MaterialTheme.colorScheme.onSurface)
+            },
+            text = {
+                val plate = activeTrip?.vehicle_plate ?: "Not Assigned"
+                val model = activeTrip?.vehicle_model ?: "—"
+                val vehicleId = activeTrip?.vehicle_id ?: "—"
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    ProfileInfoRow(Icons.Default.LocalShipping, "Plate Number", plate)
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+                    ProfileInfoRow(Icons.Default.DirectionsCar, "Model", model)
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+                    ProfileInfoRow(Icons.Default.Tag, "Vehicle ID", vehicleId)
+                }
+            },
+            shape = RoundedCornerShape(16.dp),
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    }
+
+    // Vehicle Papers Dialog
+    if (showVehiclePapers) {
+        AlertDialog(
+            onDismissRequest = { showVehiclePapers = false },
+            confirmButton = {
+                Button(
+                    onClick = { showVehiclePapers = false },
+                    colors = ButtonDefaults.buttonColors(containerColor = HoseXpertsBlue),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text("OK") }
+            },
+            title = {
+                Text("Vehicle Papers & Documents", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = MaterialTheme.colorScheme.onSurface)
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Vehicle documents (RC, Insurance, Fitness Certificate, PUC, Challans) are managed by your fleet manager.", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text("Contact your dispatch manager to view or update vehicle documents.", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            },
+            shape = RoundedCornerShape(16.dp),
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    }
 }
 
 @Composable
@@ -2515,7 +2616,7 @@ fun OfflineQueueScreen(pendingCount: Int, onTriggerSync: () -> Unit, onBack: () 
         topBar = {
             Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 2.dp) {
                 Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onSurface) }
+                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onSurface) }
                     Column {
                         Text("Offline Event Queue", color = MaterialTheme.colorScheme.onSurface, fontSize = 17.sp, fontWeight = FontWeight.Bold)
                         Text("$pendingCount event(s) pending sync", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
@@ -2599,3 +2700,515 @@ fun PermissionScreen(onRequestPermissions: () -> Unit) {
         PrimaryActionButton(text = "GRANT PERMISSIONS", onClick = onRequestPermissions, icon = Icons.Default.Security)
     }
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// SCREEN: EMERGENCY & SOS ASSISTANCE
+// ─────────────────────────────────────────────────────────────────────────
+@Composable
+fun EmergencyScreen(
+    onBack: () -> Unit,
+    onReportIncident: () -> Unit,
+    activeTrip: Trip? = null,
+    controlRoomPhone: String = "+911145678900",
+    fleetManagerPhone: String = "+919811223344",
+    roadsidePhone: String = "+9118001021234",
+    emergencyServicesPhone: String = "112"
+) {
+    val context = LocalContext.current
+    var holdProgress by remember { mutableStateOf(0f) }
+    var isHolding by remember { mutableStateOf(false) }
+    var sosActivated by remember { mutableStateOf(false) }
+
+    LaunchedEffect(isHolding) {
+        if (isHolding && !sosActivated) {
+            val startTime = System.currentTimeMillis()
+            val duration = 2000L
+            while (isHolding && !sosActivated) {
+                val elapsed = System.currentTimeMillis() - startTime
+                holdProgress = (elapsed.toFloat() / duration).coerceIn(0f, 1f)
+                if (holdProgress >= 1f) {
+                    sosActivated = true
+                    isHolding = false
+                    try {
+                        val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$emergencyServicesPhone"))
+                        context.startActivity(intent)
+                    } catch (_: Exception) {}
+                    break
+                }
+                kotlinx.coroutines.delay(30)
+            }
+        } else if (!sosActivated) {
+            holdProgress = 0f
+        }
+    }
+
+    Scaffold(
+        topBar = {
+            Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 2.dp) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onSurface)
+                    }
+                    Text("Emergency Help & SOS", color = MaterialTheme.colorScheme.onSurface, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        },
+        containerColor = MaterialTheme.colorScheme.background
+    ) { padding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(horizontal = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(vertical = 16.dp)
+        ) {
+            // Hero SOS Beacon Card
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    shape = RoundedCornerShape(20.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                    border = BorderStroke(1.dp, StatusRed.copy(alpha = 0.35f))
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            "SOS EMERGENCY BEACON",
+                            color = StatusRed,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = 1.2.sp
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            "Need Immediate Help?",
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            "Dispatch Control Room and Emergency Responders are available 24/7.",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 13.sp,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(20.dp))
+
+                        // Hold button with progress ring
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier.size(130.dp)
+                        ) {
+                            CircularProgressIndicator(
+                                progress = { holdProgress },
+                                modifier = Modifier.size(130.dp),
+                                color = StatusRed,
+                                trackColor = StatusRed.copy(alpha = 0.15f),
+                                strokeWidth = 6.dp
+                            )
+
+                            Button(
+                                onClick = {
+                                    val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$emergencyServicesPhone"))
+                                    context.startActivity(intent)
+                                },
+                                modifier = Modifier.size(105.dp),
+                                shape = CircleShape,
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (sosActivated) StatusGreen else StatusRed
+                                ),
+                                contentPadding = PaddingValues(0.dp)
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Icon(
+                                        if (sosActivated) Icons.Default.CheckCircle else Icons.Default.Warning,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(32.dp)
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        if (sosActivated) "CALLED" else "TAP / SOS",
+                                        color = Color.White,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.ExtraBold
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+                        Text(
+                            if (sosActivated) "Emergency alert activated. Dialing 112..."
+                            else if (isHolding) "Holding... ${(holdProgress * 100).toInt()}%"
+                            else "Tap to dial 112 or hold for emergency broadcast",
+                            color = if (sosActivated) StatusGreen else MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+            }
+
+            // Report Incident / Breakdown Button
+            item {
+                Button(
+                    onClick = onReportIncident,
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = StatusAmber)
+                ) {
+                    Icon(Icons.Default.ReportProblem, contentDescription = null, tint = Color.Black, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("REPORT DELAY / BREAKDOWN", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                }
+            }
+
+            // Emergency Contacts Directory Header
+            item {
+                Text(
+                    "EMERGENCY CONTACTS DIRECTORY",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.sp
+                )
+            }
+
+            // Contact 1: Control Room 24/7
+            item {
+                EmergencyContactCard(
+                    title = "Dispatch Control Room",
+                    subtitle = "24/7 Fleet operations & live tracking help",
+                    phoneNumber = controlRoomPhone,
+                    icon = Icons.Default.HeadsetMic,
+                    tint = HoseXpertsBlue
+                )
+            }
+
+            // Contact 2: Fleet Manager
+            item {
+                EmergencyContactCard(
+                    title = "Fleet Operations Manager",
+                    subtitle = "Direct line to duty fleet manager",
+                    phoneNumber = fleetManagerPhone,
+                    icon = Icons.Default.Person,
+                    tint = HoseXpertsBlue
+                )
+            }
+
+            // Contact 3: Roadside Assistance & Towing
+            item {
+                EmergencyContactCard(
+                    title = "Roadside Assistance & Towing",
+                    subtitle = "Vehicle breakdown, puncture or accident support",
+                    phoneNumber = roadsidePhone,
+                    icon = Icons.Default.LocalShipping,
+                    tint = StatusAmber
+                )
+            }
+
+            // Contact 4: National Emergency 112
+            item {
+                EmergencyContactCard(
+                    title = "Police & Medical Services (112)",
+                    subtitle = "National Emergency Response Support System",
+                    phoneNumber = emergencyServicesPhone,
+                    icon = Icons.Default.Shield,
+                    tint = StatusRed
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun EmergencyContactCard(
+    title: String,
+    subtitle: String,
+    phoneNumber: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    tint: Color
+) {
+    val context = LocalContext.current
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable {
+                try {
+                    val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$phoneNumber"))
+                    context.startActivity(intent)
+                } catch (_: Exception) {}
+            },
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        shape = RoundedCornerShape(14.dp),
+        elevation = CardDefaults.cardElevation(1.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                modifier = Modifier.weight(1f)
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = tint.copy(alpha = 0.12f),
+                    modifier = Modifier.size(42.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(22.dp))
+                    }
+                }
+                Column {
+                    Text(title, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+                    Text(phoneNumber, color = tint, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                }
+            }
+
+            Surface(
+                shape = CircleShape,
+                color = tint,
+                modifier = Modifier.size(36.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                    Icon(Icons.Default.Phone, contentDescription = "Call", tint = Color.White, modifier = Modifier.size(18.dp))
+                }
+            }
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// SCREEN: INTERACTIVE MAP & ROUTE CORRIDOR
+// ─────────────────────────────────────────────────────────────────────────
+@Composable
+fun MapScreen(
+    trip: Trip?,
+    onBack: () -> Unit,
+    onNavigateToStop: (TripStop) -> Unit = {}
+) {
+    val context = LocalContext.current
+    val stops = trip?.stops ?: emptyList()
+    val activeStop = stops.firstOrNull { it.status != StopStatus.COMPLETED } ?: stops.firstOrNull()
+
+    Scaffold(
+        topBar = {
+            Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 2.dp) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onSurface)
+                        }
+                        Column {
+                            Text(trip?.displayTripNumber ?: "Live Route Map", color = MaterialTheme.colorScheme.onSurface, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                            Text("${stops.size} Stops • Corridor Navigation", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                        }
+                    }
+
+                    if (activeStop != null && activeStop.latitude != 0.0) {
+                        FilledTonalButton(
+                            onClick = {
+                                val lat = activeStop.latitude
+                                val lng = activeStop.longitude
+                                val gmmIntentUri = Uri.parse("google.navigation:q=$lat,$lng&mode=d")
+                                val mapIntent = Intent(Intent.ACTION_VIEW, gmmIntentUri).apply {
+                                    setPackage("com.google.android.apps.maps")
+                                }
+                                try {
+                                    context.startActivity(mapIntent)
+                                } catch (_: Exception) {
+                                    val fallback = Intent(Intent.ACTION_VIEW, Uri.parse("geo:$lat,$lng?q=$lat,$lng(${Uri.encode(activeStop.destination_name ?: "Stop")})"))
+                                    context.startActivity(fallback)
+                                }
+                            },
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Icon(Icons.Default.Navigation, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("NAVIGATE", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+        },
+        containerColor = MaterialTheme.colorScheme.background
+    ) { padding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+            contentPadding = PaddingValues(vertical = 16.dp)
+        ) {
+            // Live Corridor summary card
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    shape = RoundedCornerShape(16.dp),
+                    elevation = CardDefaults.cardElevation(2.dp)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text("ORIGIN DEPOT", color = HoseXpertsBlueLight, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                                Text(trip?.starting_location_name ?: "HoseXperts Central Depot", color = MaterialTheme.colorScheme.onSurface, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                            }
+                            StatusBadge(trip?.status?.name ?: "PLANNED")
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column {
+                                Text("ASSIGNED VEHICLE", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+                                Text(trip?.vehicle_plate ?: "Fleet Truck", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                            }
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text("TOTAL DISTANCE", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+                                Text("${trip?.total_distance_km ?: "--"} km", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Route Stops Section
+            item {
+                Text(
+                    "ROUTE STOPS & CORRIDOR WAYPOINTS",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.sp
+                )
+            }
+
+            if (stops.isEmpty()) {
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        shape = RoundedCornerShape(14.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(Icons.Default.Route, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(36.dp))
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text("No stops assigned for this route", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+                        }
+                    }
+                }
+            } else {
+                items(stops) { stop ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (stop.status == StopStatus.IN_PROGRESS || stop.status == StopStatus.ARRIVED)
+                                HoseXpertsBlue.copy(alpha = 0.08f)
+                            else MaterialTheme.colorScheme.surface
+                        ),
+                        shape = RoundedCornerShape(14.dp),
+                        elevation = CardDefaults.cardElevation(1.dp),
+                        border = if (stop.status == StopStatus.IN_PROGRESS || stop.status == StopStatus.ARRIVED)
+                            BorderStroke(1.dp, HoseXpertsBlue.copy(alpha = 0.5f))
+                        else null
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = when (stop.status) {
+                                        StopStatus.COMPLETED -> StatusGreen
+                                        StopStatus.ARRIVED, StopStatus.IN_PROGRESS -> HoseXpertsBlue
+                                        else -> MaterialTheme.colorScheme.outline
+                                    },
+                                    modifier = Modifier.size(32.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                                        Text("${stop.stop_number}", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                    }
+                                }
+
+                                Column {
+                                    Text(stop.destination_name ?: "Stop ${stop.stop_number}", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                    Text(stop.address ?: "", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    if (stop.planned_arrival != null) {
+                                        Text("ETA: ${stop.planned_arrival}", color = HoseXpertsBlueLight, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                                    }
+                                }
+                            }
+
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                IconButton(
+                                    onClick = {
+                                        val lat = stop.latitude
+                                        val lng = stop.longitude
+                                        val uri = Uri.parse("google.navigation:q=$lat,$lng&mode=d")
+                                        val intent = Intent(Intent.ACTION_VIEW, uri).apply {
+                                            setPackage("com.google.android.apps.maps")
+                                        }
+                                        try {
+                                            context.startActivity(intent)
+                                        } catch (_: Exception) {
+                                            val fallback = Intent(Intent.ACTION_VIEW, Uri.parse("geo:$lat,$lng?q=$lat,$lng"))
+                                            context.startActivity(fallback)
+                                        }
+                                    }
+                                ) {
+                                    Icon(Icons.Default.Navigation, contentDescription = "Navigate", tint = HoseXpertsBlue, modifier = Modifier.size(20.dp))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+

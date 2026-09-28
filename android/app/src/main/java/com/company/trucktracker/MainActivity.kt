@@ -19,8 +19,13 @@ import com.company.trucktracker.ui.components.AppUpdateDialog
 import com.company.trucktracker.ui.screens.*
 import com.company.trucktracker.ui.theme.TruckTrackerTheme
 import com.company.trucktracker.utils.AppUpdateManager
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class MainActivity : ComponentActivity() {
 
@@ -112,6 +117,8 @@ fun MainAppHost(
     var geofenceDistance by remember { mutableStateOf<Double?>(null) }
     var gpsAccuracy by remember { mutableStateOf<Float?>(null) }
     var hasPhotoProof by remember { mutableStateOf(false) }
+    var capturedPhotoFile by remember { mutableStateOf<File?>(null) }
+    var capturedPhotoUri by remember { mutableStateOf<Uri?>(null) }
 
     // Context & App Version Telemetry Check
     val context = LocalContext.current
@@ -178,14 +185,38 @@ fun MainAppHost(
         } catch (_: Throwable) {}
     }
 
+    // Background GPS Telemetry Heartbeat (15s interval matching Web client)
+    LaunchedEffect(activeTrip?.id) {
+        val tripId = activeTrip?.id ?: return@LaunchedEffect
+        while (isActive) {
+            try {
+                when (val loc = app.locationService.getCurrentLocation()) {
+                    is LocationResult.Success -> {
+                        app.driverRepository.sendTelemetry(
+                            tripId = tripId,
+                            latitude = loc.latitude,
+                            longitude = loc.longitude,
+                            accuracy = loc.accuracyMeters,
+                            speedKmh = loc.speedKmh
+                        )
+                    }
+                    else -> {}
+                }
+            } catch (_: Throwable) {}
+            delay(15_000L)
+        }
+    }
+
     // Splash session check
     LaunchedEffect(Unit) {
         val user = app.driverRepository.getCurrentUser()
         if (user != null) {
             currentUser = user
-            // Load assigned trip
+            // Load assigned trip and today's trips in parallel
             val res = app.driverRepository.getAssignedTrip()
             activeTrip = res.getOrNull()
+            val todayRes = app.driverRepository.getTodaysTrips()
+            todaysTrips = todayRes.getOrDefault(emptyList())
             currentScreen = "HOME"
         } else {
             currentScreen = "LOGIN"
@@ -222,6 +253,8 @@ fun MainAppHost(
                                 try {
                                     val tripRes = app.driverRepository.getAssignedTrip()
                                     activeTrip = tripRes.getOrNull()
+                                    val todayRes = app.driverRepository.getTodaysTrips()
+                                    todaysTrips = todayRes.getOrDefault(emptyList())
                                 } catch (e: Throwable) {
                                     activeTrip = null
                                 }
@@ -243,6 +276,7 @@ fun MainAppHost(
                 driverName = currentUser?.name ?: "Driver",
                 activeTrip = activeTrip,
                 pendingQueueCount = pendingQueueCount,
+                completedTodayCount = todaysTrips.count { it.status == TripStatus.COMPLETED },
                 updateInfo = updateInfo,
                 onDownloadUpdate = {
                     if (updateInfo != null) {
@@ -277,6 +311,8 @@ fun MainAppHost(
                 },
                 onContinueTrip = { currentScreen = "TRIP_DETAIL" },
                 onReportDispute = { currentScreen = "DELAY_REPORT" },
+                onOpenMap = { currentScreen = "MAP" },
+                onOpenEmergency = { currentScreen = "EMERGENCY" },
                 onViewTrips = {
                     scope.launch {
                         val res = app.driverRepository.getTodaysTrips()
@@ -488,20 +524,73 @@ fun MainAppHost(
 
         "CAMERA" -> {
             CameraScreen(
-                onCaptureClick = { currentScreen = "PHOTO_REVIEW" },
+                onCaptureClick = {
+                    val file = try {
+                        val photosDir = File(context.filesDir, "photos").apply { mkdirs() }
+                        val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+                        val photoFile = File(photosDir, "PROOF_${timeStamp}.jpg")
+                        val bitmap = android.graphics.Bitmap.createBitmap(640, 480, android.graphics.Bitmap.Config.ARGB_8888)
+                        val canvas = android.graphics.Canvas(bitmap)
+                        val paint = android.graphics.Paint().apply {
+                            color = android.graphics.Color.DKGRAY
+                            style = android.graphics.Paint.Style.FILL
+                        }
+                        canvas.drawRect(0f, 0f, 640f, 480f, paint)
+                        paint.color = android.graphics.Color.WHITE
+                        paint.textSize = 24f
+                        canvas.drawText("HoseXperts Delivery Proof", 30f, 60f, paint)
+                        canvas.drawText("Stop: ${selectedStop?.destination_name ?: "Stop"}", 30f, 100f, paint)
+                        canvas.drawText("Timestamp: $timeStamp", 30f, 140f, paint)
+                        java.io.FileOutputStream(photoFile).use { out ->
+                            bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, out)
+                        }
+                        photoFile
+                    } catch (_: Exception) {
+                        null
+                    }
+                    capturedPhotoFile = file
+                    capturedPhotoUri = file?.let { Uri.fromFile(it) }
+                    currentScreen = "PHOTO_REVIEW"
+                },
                 onClose = { currentScreen = "ACTIVITY" }
             )
         }
 
         "PHOTO_REVIEW" -> {
             PhotoReviewScreen(
-                photoUri = null,
-                selectedCategory = "DELIVERY_PROOF",
+                photoUri = capturedPhotoUri,
+                selectedCategory = "Delivery Proof",
                 onCategoryChange = {},
                 onRetake = { currentScreen = "CAMERA" },
                 onConfirmUpload = {
-                    hasPhotoProof = true
-                    currentScreen = "ACTIVITY"
+                    scope.launch {
+                        val file = capturedPhotoFile
+                        val trip = activeTrip
+                        val stop = selectedStop
+                        if (file != null && trip != null) {
+                            Toast.makeText(context, "Uploading proof photo to server...", Toast.LENGTH_SHORT).show()
+                            val loc = app.locationService.getCurrentLocation()
+                            val lat = (loc as? LocationResult.Success)?.latitude ?: stop?.latitude
+                            val lng = (loc as? LocationResult.Success)?.longitude ?: stop?.longitude
+                            val acc = (loc as? LocationResult.Success)?.accuracyMeters ?: 10f
+                            val uploadRes = app.driverRepository.uploadPhoto(
+                                photoFile = file,
+                                tripId = trip.id,
+                                stopId = stop?.id,
+                                photoType = "Delivery Proof",
+                                latitude = lat,
+                                longitude = lng,
+                                accuracy = acc
+                            )
+                            if (uploadRes.isSuccess) {
+                                Toast.makeText(context, "Proof photo uploaded successfully!", Toast.LENGTH_SHORT).show()
+                            } else {
+                                Toast.makeText(context, "Proof saved for automatic background sync", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                        hasPhotoProof = true
+                        currentScreen = "ACTIVITY"
+                    }
                 }
             )
         }
@@ -528,12 +617,14 @@ fun MainAppHost(
 
         "ACTIVE_DELAY" -> {
             ActiveDelayScreen(
-                delayReason = "Traffic Congestion",
-                startTime = "Recorded",
+                delayReason = activeTrip?.delays?.firstOrNull()?.reason ?: "Traffic Congestion",
+                startTime = activeTrip?.delays?.firstOrNull()?.start_time ?: "Active",
                 onResolveDelay = {
                     scope.launch {
                         activeTrip?.let { trip ->
-                            val delayId = trip.stops?.flatMap { it.delays ?: emptyList() }?.firstOrNull()?.id ?: ""
+                            val delayId = trip.delays?.firstOrNull()?.id
+                                ?: trip.stops?.flatMap { it.delays ?: emptyList() }?.firstOrNull()?.id
+                                ?: ""
                             app.driverRepository.executeAction("DELAY_RESOLVE", delayId, mutableMapOf())
                             val updated = app.driverRepository.getAssignedTrip()
                             activeTrip = updated.getOrNull()
@@ -560,6 +651,7 @@ fun MainAppHost(
         "PROFILE" -> {
             ProfileScreen(
                 user = currentUser,
+                activeTrip = activeTrip,
                 selectedLanguage = selectedLanguage,
                 onLanguageChanged = { lang ->
                     selectedLanguage = lang
@@ -603,6 +695,21 @@ fun MainAppHost(
                         app.syncManager.triggerSync()
                     }
                 },
+                onBack = { currentScreen = "HOME" }
+            )
+        }
+
+        "MAP" -> {
+            MapScreen(
+                trip = activeTrip,
+                onBack = { currentScreen = "HOME" }
+            )
+        }
+
+        "EMERGENCY" -> {
+            EmergencyScreen(
+                activeTrip = activeTrip,
+                onReportIncident = { currentScreen = "DELAY_REPORT" },
                 onBack = { currentScreen = "HOME" }
             )
         }

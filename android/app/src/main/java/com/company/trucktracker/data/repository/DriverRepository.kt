@@ -11,6 +11,11 @@ import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.asRequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -77,7 +82,10 @@ class DriverRepository(
         try {
             val res = apiService.getTripHistory()
             if (res.isSuccessful && res.body()?.data != null) {
-                Result.success(res.body()!!.data!!)
+                // Filter to only finished/completed trips for the history view
+                val historyStatuses = setOf(TripStatus.COMPLETED, TripStatus.RETURNING, TripStatus.CANCELLED)
+                val history = res.body()!!.data!!.filter { it.status in historyStatuses }
+                Result.success(history)
             } else {
                 Result.failure(Exception("Failed to load trip history"))
             }
@@ -155,6 +163,72 @@ class DriverRepository(
             )
             dao.insertEvent(offlineEntity)
             Result.success(true) // Saved locally
+        }
+    }
+
+    suspend fun uploadPhoto(
+        photoFile: File,
+        tripId: String,
+        stopId: String?,
+        photoType: String = "Delivery Proof",
+        latitude: Double? = null,
+        longitude: Double? = null,
+        accuracy: Float? = null
+    ): Result<Photo> = withContext(Dispatchers.IO) {
+        try {
+            val reqFile = photoFile.asRequestBody("image/jpeg".toMediaTypeOrNull())
+            val body = MultipartBody.Part.createFormData("photo", photoFile.name, reqFile)
+            val tripIdPart = tripId.toRequestBody("text/plain".toMediaTypeOrNull())
+            val stopIdPart = stopId?.toRequestBody("text/plain".toMediaTypeOrNull())
+            val photoTypePart = photoType.toRequestBody("text/plain".toMediaTypeOrNull())
+            val latPart = latitude?.toString()?.toRequestBody("text/plain".toMediaTypeOrNull())
+            val lngPart = longitude?.toString()?.toRequestBody("text/plain".toMediaTypeOrNull())
+            val accPart = accuracy?.toString()?.toRequestBody("text/plain".toMediaTypeOrNull())
+
+            val res = apiService.uploadPhoto(body, tripIdPart, stopIdPart, photoTypePart, latPart, lngPart, accPart)
+            if (res.isSuccessful && res.body()?.data != null) {
+                Result.success(res.body()!!.data!!)
+            } else if (res.isSuccessful && res.body()?.success == true) {
+                Result.success(
+                    Photo(
+                        id = UUID.randomUUID().toString(),
+                        photo_type = photoType,
+                        file_path = photoFile.name,
+                        timestamp = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
+                            timeZone = TimeZone.getTimeZone("UTC")
+                        }.format(Date())
+                    )
+                )
+            } else {
+                Result.failure(Exception(res.body()?.error ?: "Failed to upload photo"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun sendTelemetry(
+        tripId: String,
+        latitude: Double,
+        longitude: Double,
+        accuracy: Float? = null,
+        speedKmh: Float? = null
+    ): Result<Boolean> = withContext(Dispatchers.IO) {
+        try {
+            val payload = mapOf(
+                "latitude" to latitude,
+                "longitude" to longitude,
+                "gps_accuracy" to accuracy,
+                "speed_kmh" to speedKmh
+            )
+            val res = apiService.sendTelemetry(tripId, payload)
+            if (res.isSuccessful) {
+                Result.success(true)
+            } else {
+                Result.failure(Exception("Telemetry failed code=${res.code()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
 

@@ -220,6 +220,8 @@ data class Trip(
     val total_delay_minutes: Int? = null,
     @SerializedName("stops")
     val stops: List<TripStop>? = null,
+    @SerializedName("delays")
+    val delays: List<Delay>? = null,
     @SerializedName("created_at")
     val created_at: String? = null,
     @SerializedName("updated_at")

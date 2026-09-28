@@ -22,7 +22,7 @@ interface TruckTrackerApiService {
     @GET("api/driver/todays-trips")
     suspend fun getTodaysTrips(): Response<ApiResponse<List<Trip>>>
 
-    @GET("api/driver/history")
+    @GET("api/driver/todays-trips")
     suspend fun getTripHistory(): Response<ApiResponse<List<Trip>>>
 
     @GET("api/trips/{id}")
@@ -96,6 +96,12 @@ interface TruckTrackerApiService {
     ): Response<ApiResponse<Photo>>
 
     // Telemetry & Version Sync
+    @POST("api/driver/trips/{id}/telemetry")
+    suspend fun sendTelemetry(
+        @Path("id") tripId: String,
+        @Body body: Map<String, Any?>
+    ): Response<Map<String, Any>>
+
     @GET("api/app-version")
     suspend fun getAppVersion(): Response<AppVersionInfo>
 }

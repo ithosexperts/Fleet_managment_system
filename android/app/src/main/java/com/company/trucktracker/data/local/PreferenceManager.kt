@@ -72,7 +72,7 @@ class PreferenceManager(context: Context) {
     }
 
     fun getLanguage(): String {
-        return prefs.getString(KEY_LANGUAGE, "EN") ?: "EN"
+        return prefs.getString(KEY_LANGUAGE, "en") ?: "en"
     }
 
     fun clear() {
