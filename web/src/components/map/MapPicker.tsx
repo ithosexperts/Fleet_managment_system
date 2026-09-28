@@ -7,7 +7,7 @@ import { NormalizedCoord, toLngLat, createGeofenceCirclePolygon } from './types'
 import { LocationSearchInput } from '../common/LocationSearchInput';
 import { PlaceSuggestion, reverseGeocodeLocation } from '../../services/geocoding';
 import { getCurrentGpsPosition } from '../../services/api';
-import { MapPin, Compass, Search, Loader2 } from 'lucide-react';
+import { MapPin, Compass, Search, Loader2, X } from 'lucide-react';
 
 export interface MapPickerProps {
   initialLat?: number;
@@ -167,19 +167,43 @@ export const MapPicker: React.FC<MapPickerProps> = ({
     }
   };
 
+  const [gpsNotice, setGpsNotice] = useState<string | null>(null);
+
   const handleLocateMe = async () => {
     setLocating(true);
+    setGpsNotice(null);
     try {
-      const pos = await getCurrentGpsPosition();
-      const newCoord = { lat: pos.latitude, lng: pos.longitude };
-      await handleCoordChange(newCoord);
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.flyTo({ center: toLngLat(newCoord), zoom: 16, duration: 800 });
+      if (typeof navigator === 'undefined' || !navigator.geolocation) {
+        setGpsNotice('Geolocation is not supported by your browser.');
+        return;
       }
+
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          setLocating(false);
+          const newCoord = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          await handleCoordChange(newCoord);
+          if (mapInstanceRef.current) {
+            mapInstanceRef.current.flyTo({ center: toLngLat(newCoord), zoom: 16, duration: 800 });
+          }
+        },
+        (err) => {
+          setLocating(false);
+          let msg = 'Could not fetch your location.';
+          if (err.code === 1) {
+            msg = 'Location access denied. Please click the lock icon in your browser address bar and set Location to Allow.';
+          } else if (err.code === 2) {
+            msg = 'Location unavailable or GPS signal lost.';
+          } else if (err.code === 3) {
+            msg = 'Location request timed out. Please try again.';
+          }
+          setGpsNotice(msg);
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
     } catch (err: any) {
-      console.warn('[MapPicker] GPS error:', err.message);
-    } finally {
       setLocating(false);
+      setGpsNotice(err.message || 'GPS location error');
     }
   };
 
@@ -221,6 +245,32 @@ export const MapPicker: React.FC<MapPickerProps> = ({
               <Compass size={15} />
             )}
             <span>GPS</span>
+          </button>
+        </div>
+      )}
+
+      {gpsNotice && (
+        <div
+          style={{
+            padding: '8px 12px',
+            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+            border: '1px solid rgba(239, 68, 68, 0.3)',
+            borderRadius: 'var(--radius-sm)',
+            fontSize: '0.78rem',
+            color: '#ef4444',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '8px'
+          }}
+        >
+          <span>{gpsNotice}</span>
+          <button
+            type="button"
+            onClick={() => setGpsNotice(null)}
+            style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '2px' }}
+          >
+            <X size={14} />
           </button>
         </div>
       )}

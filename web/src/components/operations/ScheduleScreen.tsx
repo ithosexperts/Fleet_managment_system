@@ -11,6 +11,7 @@ import {
   ChevronRight,
   UserCheck,
   Edit,
+  Trash2,
   XCircle,
   Eye,
   AlertTriangle,
@@ -29,7 +30,7 @@ interface ScheduleScreenProps {
   onOpenCreateTrip: () => void;
   onOpenTripDetails: (tripId: string) => void;
   onOpenAssignment: (trip: Trip) => void;
-  onCancelTrip: (tripId: string) => void;
+  onCancelTrip: (trip: Trip) => void;
 }
 
 export const ScheduleScreen: React.FC<ScheduleScreenProps> = ({
@@ -421,25 +422,27 @@ export const ScheduleScreen: React.FC<ScheduleScreenProps> = ({
                     <span>View</span>
                   </button>
 
-                  {trip.status !== 'COMPLETED' && trip.status !== 'CANCELLED' && (
-                    <button
-                      type="button"
-                      onClick={() => onCancelTrip(trip.id)}
-                      style={{
-                        background: 'none',
-                        border: '1px solid var(--border-subtle)',
-                        borderRadius: 'var(--radius-sm)',
-                        padding: '7px 10px',
-                        cursor: 'pointer',
-                        color: 'var(--text-secondary)',
-                        display: 'flex',
-                        alignItems: 'center'
-                      }}
-                      title="Cancel Trip"
-                    >
+                  <button
+                    type="button"
+                    onClick={() => onCancelTrip(trip)}
+                    style={{
+                      background: 'none',
+                      border: '1px solid var(--border-subtle)',
+                      borderRadius: 'var(--radius-sm)',
+                      padding: '7px 10px',
+                      cursor: 'pointer',
+                      color: trip.status === 'CANCELLED' || trip.status === 'COMPLETED' ? '#ef4444' : 'var(--text-secondary)',
+                      display: 'flex',
+                      alignItems: 'center'
+                    }}
+                    title={trip.status === 'CANCELLED' || trip.status === 'COMPLETED' ? 'Delete Trip Manifest' : 'Cancel or Remove Trip'}
+                  >
+                    {trip.status === 'CANCELLED' || trip.status === 'COMPLETED' ? (
+                      <Trash2 size={15} />
+                    ) : (
                       <XCircle size={15} />
-                    </button>
-                  )}
+                    )}
+                  </button>
                 </div>
               </div>
             );

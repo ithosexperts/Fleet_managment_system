@@ -372,6 +372,9 @@ export const api = {
     },
     cancelTrip: async (id: string, reason: string) => {
       return await request(`/trips/${id}/cancel`, { method: 'POST', body: JSON.stringify({ reason }) });
+    },
+    deleteTrip: async (id: string) => {
+      return await request(`/trips/${id}`, { method: 'DELETE' });
     }
   },
 

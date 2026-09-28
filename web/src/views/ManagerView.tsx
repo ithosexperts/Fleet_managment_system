@@ -31,6 +31,7 @@ import {
   Radio,
   Navigation,
   ArrowDownAZ,
+  XCircle,
   X
 } from 'lucide-react';
 import { api, API_BASE } from '../services/api';
@@ -38,6 +39,7 @@ import { Trip, User, Vehicle, Driver, Destination } from '../types';
 import { StatusBadge } from '../components/StatusBadge';
 import { TripCreatorModal } from '../components/TripCreatorModal';
 import { TripDetailModal } from '../components/TripDetailModal';
+import { TripActionModal } from '../components/TripActionModal';
 import { VehicleModal } from '../components/VehicleModal';
 import { DriverModal } from '../components/DriverModal';
 import { DestinationModal } from '../components/DestinationModal';
@@ -135,6 +137,8 @@ export const ManagerView: React.FC<Props> = ({
   const [papersIsAddDoc, setPapersIsAddDoc] = useState<boolean | undefined>(undefined);
   const [dossierDriver, setDossierDriver] = useState<Driver | null>(null);
   const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
+  const [actionModalOpen, setActionModalOpen] = useState(false);
+  const [actionModalTrips, setActionModalTrips] = useState<Trip[]>([]);
 
   // Live Telematics Map state (Fleet Telemetry)
   const [telematicsSearch, setTelematicsSearch] = useState('');
@@ -318,17 +322,45 @@ export const ManagerView: React.FC<Props> = ({
     );
   };
 
-  const handleCancelTrip = async (tripId: string) => {
-    const reason = window.prompt('Please provide a reason for cancelling this trip:');
-    if (reason === null) return;
-    try {
-      await api.manager.cancelTrip(tripId, reason || 'Cancelled by manager');
-      setTrips((prev) =>
-        prev.map((t) => (t.id === tripId ? { ...t, status: 'CANCELLED' } : t))
-      );
-    } catch (err: any) {
-      alert(err.message || 'Failed to cancel trip');
+  const handleOpenCancelTrip = (tripOrId: Trip | string) => {
+    const targetTrip = typeof tripOrId === 'string'
+      ? trips.find((t) => t.id === tripOrId)
+      : tripOrId;
+    if (targetTrip) {
+      setActionModalTrips([targetTrip]);
+      setActionModalOpen(true);
     }
+  };
+
+  const handleOpenBulkAction = () => {
+    const selected = trips.filter((t) => selectedTripIds.includes(t.id));
+    if (selected.length > 0) {
+      setActionModalTrips(selected);
+      setActionModalOpen(true);
+    }
+  };
+
+  const handleConfirmCancel = async (tripIds: string[], reason: string) => {
+    for (const id of tripIds) {
+      await api.manager.cancelTrip(id, reason);
+    }
+    setTrips((prev) =>
+      prev.map((t) => (tripIds.includes(t.id) ? { ...t, status: 'CANCELLED' } : t))
+    );
+    setSelectedTripIds((prev) => prev.filter((id) => !tripIds.includes(id)));
+    await loadDashboardData();
+  };
+
+  const handleConfirmDelete = async (tripIds: string[]) => {
+    for (const id of tripIds) {
+      await api.manager.deleteTrip(id);
+    }
+    setTrips((prev) => prev.filter((t) => !tripIds.includes(t.id)));
+    setSelectedTripIds((prev) => prev.filter((id) => !tripIds.includes(id)));
+    if (selectedTripId && tripIds.includes(selectedTripId)) {
+      setSelectedTripId(null);
+    }
+    await loadDashboardData();
   };
 
   const loadDashboardData = async () => {
@@ -706,18 +738,41 @@ export const ManagerView: React.FC<Props> = ({
       header: 'Actions',
       align: 'right',
       render: (trip) => (
-        <button
-          type="button"
-          className="btn btn-secondary btn-sm"
-          onClick={(e) => {
-            e.stopPropagation();
-            setSelectedTripId(trip.id);
-          }}
-          style={{ padding: '4px 10px' }}
-        >
-          <span>Inspect</span>
-          <ChevronRight size={13} />
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedTripId(trip.id);
+            }}
+            style={{ padding: '4px 10px' }}
+            title="Inspect Trip Details"
+          >
+            <span>Inspect</span>
+            <ChevronRight size={13} />
+          </button>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleOpenCancelTrip(trip);
+            }}
+            style={{
+              padding: '4px 8px',
+              color: trip.status === 'CANCELLED' || trip.status === 'COMPLETED' ? '#ef4444' : '#f59e0b',
+              borderColor: 'var(--border-subtle)'
+            }}
+            title={trip.status === 'CANCELLED' || trip.status === 'COMPLETED' ? 'Delete Trip Manifest' : 'Cancel or Remove Trip'}
+          >
+            {trip.status === 'CANCELLED' || trip.status === 'COMPLETED' ? (
+              <Trash2 size={13} />
+            ) : (
+              <XCircle size={13} />
+            )}
+          </button>
+        </div>
       )
     }
   ];
@@ -1085,7 +1140,7 @@ export const ManagerView: React.FC<Props> = ({
           onOpenCreateTrip={() => setIsCreateModalOpen(true)}
           onOpenTripDetails={(id) => setSelectedTripId(id)}
           onOpenAssignment={(trip) => setAssignmentTrip(trip)}
-          onCancelTrip={handleCancelTrip}
+          onCancelTrip={handleOpenCancelTrip}
         />
       )}
 
@@ -1600,6 +1655,24 @@ export const ManagerView: React.FC<Props> = ({
                 >
                   <Compass size={12} />
                   <span>Focus on Map</span>
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={handleOpenBulkAction}
+                  style={{
+                    padding: '4px 10px',
+                    fontSize: '0.75rem',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    color: '#ef4444',
+                    borderColor: 'rgba(239, 68, 68, 0.3)'
+                  }}
+                  title="Cancel or Remove Selected Trips"
+                >
+                  <Trash2 size={12} />
+                  <span>Cancel / Delete Selected</span>
                 </button>
                 <button
                   type="button"
@@ -3351,8 +3424,25 @@ export const ManagerView: React.FC<Props> = ({
           onClose={() => setSelectedTripId(null)}
           onRefresh={loadDashboardData}
           theme={theme}
+          onCancelTrip={(t) => handleOpenCancelTrip(t)}
+          onDeleteTrip={(id) => {
+            const t = trips.find((x) => x.id === id);
+            if (t) handleOpenCancelTrip(t);
+          }}
         />
       )}
+
+      {/* Trip Action Modal (Cancel / Delete confirmation dialog) */}
+      <TripActionModal
+        isOpen={actionModalOpen}
+        trips={actionModalTrips}
+        onClose={() => {
+          setActionModalOpen(false);
+          setActionModalTrips([]);
+        }}
+        onConfirmCancel={handleConfirmCancel}
+        onConfirmDelete={handleConfirmDelete}
+      />
 
       {/* Dispatch Assignment Workflow Modal */}
       {assignmentTrip && (

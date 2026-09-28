@@ -14,7 +14,9 @@ import {
   FileText,
   RotateCcw,
   ExternalLink,
-  Download
+  Download,
+  Trash2,
+  XCircle
 } from 'lucide-react';
 import { api } from '../services/api';
 import { Trip, TripStop, Photo, Delay, TripEvent } from '../types';
@@ -27,9 +29,11 @@ interface Props {
   onClose: () => void;
   onRefresh?: () => void;
   theme?: 'dark' | 'light';
+  onCancelTrip?: (trip: Trip) => void;
+  onDeleteTrip?: (tripId: string) => void;
 }
 
-export const TripDetailModal: React.FC<Props> = ({ tripId, onClose, onRefresh, theme = 'light' }) => {
+export const TripDetailModal: React.FC<Props> = ({ tripId, onClose, onRefresh, theme = 'light', onCancelTrip, onDeleteTrip }) => {
   const [trip, setTrip] = useState<Trip | null>(null);
   const [activeTab, setActiveTab] = useState<'timeline' | 'map' | 'stops' | 'photos' | 'delays' | 'audit'>('timeline');
   const [loading, setLoading] = useState(true);
@@ -104,9 +108,59 @@ export const TripDetailModal: React.FC<Props> = ({ tripId, onClose, onRefresh, t
             </div>
           </div>
 
-          <button className="btn btn-secondary" onClick={onClose} style={{ padding: '6px' }} type="button">
-            <X size={18} />
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {trip.status !== 'COMPLETED' && trip.status !== 'CANCELLED' && onCancelTrip && (
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => {
+                  onClose();
+                  onCancelTrip(trip);
+                }}
+                style={{
+                  fontSize: '0.78rem',
+                  padding: '5px 12px',
+                  color: '#f59e0b',
+                  borderColor: 'rgba(245, 158, 11, 0.4)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px'
+                }}
+                title="Cancel Trip"
+              >
+                <XCircle size={14} />
+                <span>Cancel Trip</span>
+              </button>
+            )}
+
+            {onDeleteTrip && (
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => {
+                  onClose();
+                  onDeleteTrip(trip.id);
+                }}
+                style={{
+                  fontSize: '0.78rem',
+                  padding: '5px 12px',
+                  color: '#ef4444',
+                  borderColor: 'rgba(239, 68, 68, 0.4)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px'
+                }}
+                title="Permanently Delete Manifest"
+              >
+                <Trash2 size={14} />
+                <span>Delete</span>
+              </button>
+            )}
+
+            <button className="btn btn-secondary" onClick={onClose} style={{ padding: '6px' }} type="button">
+              <X size={18} />
+            </button>
+          </div>
         </div>
 
         {/* Quick Operational Metrics Row */}

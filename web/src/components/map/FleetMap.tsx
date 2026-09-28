@@ -744,6 +744,57 @@ export const FleetMap: React.FC<FleetMapProps> = ({
           />
         )}
 
+        {/* User Exact GPS Location Pin (Pulsing Radar Wave) */}
+        {activeUserCoord && (
+          <MapMarker
+            map={mapInstanceRef.current}
+            coord={activeUserCoord}
+            popupHtml={`
+              <div style="font-family: inherit; padding: 6px 2px; color: #0f172a;">
+                <div style="font-weight: 800; font-size: 13px; color: #0284c7;">📍 Your Current Location</div>
+                <div style="font-size: 11px; color: #64748b; margin-top: 2px;">Accurate Device GPS Telemetry Pin</div>
+              </div>
+            `}
+          >
+            <div
+              style={{
+                position: 'relative',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transform: 'translate(-50%, -50%)',
+                pointerEvents: 'none'
+              }}
+            >
+              <div
+                style={{
+                  position: 'absolute',
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '50%',
+                  backgroundColor: 'rgba(2, 132, 199, 0.45)',
+                  animation: 'pulse 1.6s infinite'
+                }}
+              />
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '24px',
+                  height: '24px',
+                  borderRadius: '50%',
+                  backgroundColor: '#0284c7',
+                  border: '3px solid #ffffff',
+                  boxShadow: '0 4px 14px rgba(2, 132, 199, 0.7)'
+                }}
+              >
+                <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#ffffff' }} />
+              </div>
+            </div>
+          </MapMarker>
+        )}
+
         {/* Map Controls */}
         {showToolbar && (
           <MapControls
@@ -752,12 +803,25 @@ export const FleetMap: React.FC<FleetMapProps> = ({
             activeTheme={currentTheme}
             onSelectTheme={(t) => setCurrentTheme(t)}
             onLocateUser={() => {
-              if (activeUserCoord && mapInstanceRef.current) {
-                mapInstanceRef.current.flyTo({
-                  center: toLngLat(activeUserCoord),
-                  zoom: 15,
-                  duration: 900
-                });
+              if (typeof navigator !== 'undefined' && 'geolocation' in navigator) {
+                navigator.geolocation.getCurrentPosition(
+                  (pos) => {
+                    const exact = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                    setDetectedUserLocation(exact);
+                    if (mapInstanceRef.current) {
+                      mapInstanceRef.current.flyTo({
+                        center: [exact.lng, exact.lat],
+                        zoom: 16,
+                        duration: 900
+                      });
+                    }
+                  },
+                  (err) => {
+                    console.warn('[FleetMap] Geolocation error:', err.message);
+                    alert('Could not fetch exact location. Please allow browser location access by clicking the lock icon in the address bar.');
+                  },
+                  { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                );
               }
             }}
             onRecenter={() => {
