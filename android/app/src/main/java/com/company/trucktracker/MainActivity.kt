@@ -84,7 +84,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MainAppHost(
     app: TruckTrackerApp,
-    isDarkTheme: Boolean = true,
+    isDarkTheme: Boolean = false,
     onToggleTheme: () -> Unit = {}
 ) {
     var currentScreen by remember { mutableStateOf("SPLASH") }
@@ -560,6 +560,19 @@ fun MainAppHost(
         "PROFILE" -> {
             ProfileScreen(
                 user = currentUser,
+                selectedLanguage = selectedLanguage,
+                onLanguageChanged = { lang ->
+                    selectedLanguage = lang
+                    app.apiClient.preferenceManager.saveLanguage(lang.code)
+                },
+                isDarkTheme = isDarkTheme,
+                onToggleTheme = onToggleTheme,
+                onTriggerSync = {
+                    scope.launch {
+                        val count = app.syncManager.triggerSync()
+                        Toast.makeText(context, if (count > 0) "Synced $count items" else "All data in sync", Toast.LENGTH_SHORT).show()
+                    }
+                },
                 onCheckUpdate = {
                     scope.launch {
                         Toast.makeText(context, "Checking for latest updates...", Toast.LENGTH_SHORT).show()

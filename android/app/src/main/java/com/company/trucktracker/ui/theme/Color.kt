@@ -38,14 +38,14 @@ val StatusRed    = Color(0xFFEF4444)
 val StatusBlue   = Color(0xFF3B82F6)
 val StatusPurple = Color(0xFF8B5CF6)
 
-// --- Light Theme Colors ---
-val LightBg            = Color(0xFFF1F5F9)
+// --- Light Theme Colors (Web App Match) ---
+val LightBg            = Color(0xFFF8FAFC)
 val LightSurface       = Color(0xFFFFFFFF)
-val LightCard          = Color(0xFFFFFFFF)
-val LightBorder        = Color(0xFFCBD5E1)
+val LightCard          = Color(0xFFF1F5F9)
+val LightBorder        = Color(0xFFE2E8F0)
 val LightTextPrimary   = Color(0xFF0F172A)
-val LightTextSecondary = Color(0xFF475569)
-val LightTextMuted     = Color(0xFF94A3B8)
+val LightTextSecondary = Color(0xFF334155)
+val LightTextMuted     = Color(0xFF64748B)
 val LightBrandBlue     = Color(0xFF1764A8)
 val LightBlueTint      = Color(0xFFEBF2FA)
 

@@ -40,33 +40,102 @@ import com.company.trucktracker.ui.components.*
 import com.company.trucktracker.ui.theme.*
 
 // ─────────────────────────────────────────────────────────────────────────
-// LANGUAGE SUPPORT
+// LANGUAGE SUPPORT (English, Hindi, Hinglish)
 // ─────────────────────────────────────────────────────────────────────────
 enum class AppLanguage(val displayName: String, val code: String) {
     ENGLISH("English", "en"),
-    URDU("اردو", "ur")
+    HINDI("हिन्दी (Hindi)", "hi"),
+    HINGLISH("Hinglish", "hinglish")
 }
 
 object AppStrings {
     // Login
-    fun loginTitle(lang: AppLanguage) = if (lang == AppLanguage.URDU) "ڈرائیور سائن ان" else "Driver Sign In"
-    fun loginSubtitle(lang: AppLanguage) = if (lang == AppLanguage.URDU) "لاجسٹکس روٹس تک رسائی" else "Access your assigned logistics routes"
-    fun emailLabel(lang: AppLanguage) = if (lang == AppLanguage.URDU) "ای میل / ڈرائیور ID" else "Email / Driver ID"
-    fun passwordLabel(lang: AppLanguage) = if (lang == AppLanguage.URDU) "پاس ورڈ" else "Password"
-    fun signIn(lang: AppLanguage) = if (lang == AppLanguage.URDU) "سائن ان کریں" else "SIGN IN"
-    fun authenticating(lang: AppLanguage) = if (lang == AppLanguage.URDU) "تصدیق ہو رہی ہے..." else "AUTHENTICATING..."
+    fun loginTitle(lang: AppLanguage) = when (lang) {
+        AppLanguage.HINDI -> "ड्राइवर साइन इन"
+        AppLanguage.HINGLISH -> "Driver Sign In Karein"
+        else -> "Driver Sign In"
+    }
+    fun loginSubtitle(lang: AppLanguage) = when (lang) {
+        AppLanguage.HINDI -> "लॉजिस्टिक्स रूट्स एक्सेस करें"
+        AppLanguage.HINGLISH -> "Apne assigned logistics routes dekhein"
+        else -> "Access your assigned logistics routes"
+    }
+    fun emailLabel(lang: AppLanguage) = when (lang) {
+        AppLanguage.HINDI -> "ईमेल / ड्राइवर आईडी"
+        AppLanguage.HINGLISH -> "Email / Driver ID"
+        else -> "Email / Driver ID"
+    }
+    fun passwordLabel(lang: AppLanguage) = when (lang) {
+        AppLanguage.HINDI -> "पासवर्ड"
+        AppLanguage.HINGLISH -> "Password"
+        else -> "Password"
+    }
+    fun signIn(lang: AppLanguage) = when (lang) {
+        AppLanguage.HINDI -> "साइन इन करें"
+        AppLanguage.HINGLISH -> "SIGN IN KAREIN"
+        else -> "SIGN IN"
+    }
+    fun authenticating(lang: AppLanguage) = when (lang) {
+        AppLanguage.HINDI -> "प्रमाणीकरण हो रहा है..."
+        AppLanguage.HINGLISH -> "Authenticating ho raha hai..."
+        else -> "AUTHENTICATING..."
+    }
     // Home
-    fun welcome(lang: AppLanguage) = if (lang == AppLanguage.URDU) "خوش آمدید" else "WELCOME BACK"
-    fun noActiveTrip(lang: AppLanguage) = if (lang == AppLanguage.URDU) "کوئی فعال روٹ نہیں" else "No Active Route Assigned"
-    fun noActiveTripSub(lang: AppLanguage) = if (lang == AppLanguage.URDU) "آج کے ٹرپس چیک کریں" else "Check Today's Trips for new dispatches"
-    fun viewSchedule(lang: AppLanguage) = if (lang == AppLanguage.URDU) "آج کا شیڈول دیکھیں" else "VIEW TODAY'S SCHEDULE"
-    fun todayTrips(lang: AppLanguage) = if (lang == AppLanguage.URDU) "آج کے ٹرپس" else "Today's Trips"
-    fun history(lang: AppLanguage) = if (lang == AppLanguage.URDU) "تاریخ" else "History"
-    fun liveTrips(lang: AppLanguage) = if (lang == AppLanguage.URDU) "لائیو ٹرپس" else "Live Trips"
-    fun profile(lang: AppLanguage) = if (lang == AppLanguage.URDU) "پروفائل" else "Profile"
-    fun startTrip(lang: AppLanguage) = if (lang == AppLanguage.URDU) "ٹرپ شروع کریں" else "START TRIP"
-    fun continueTrip(lang: AppLanguage) = if (lang == AppLanguage.URDU) "ٹرپ جاری رکھیں" else "CONTINUE TRIP"
-    fun signOut(lang: AppLanguage) = if (lang == AppLanguage.URDU) "سائن آؤٹ" else "SIGN OUT"
+    fun welcome(lang: AppLanguage) = when (lang) {
+        AppLanguage.HINDI -> "स्वागत है"
+        AppLanguage.HINGLISH -> "WELCOME BACK"
+        else -> "WELCOME BACK"
+    }
+    fun noActiveTrip(lang: AppLanguage) = when (lang) {
+        AppLanguage.HINDI -> "कोई सक्रिय रूट आवंटित नहीं है"
+        AppLanguage.HINGLISH -> "No Active Trip Assigned"
+        else -> "No Active Route Assigned"
+    }
+    fun noActiveTripSub(lang: AppLanguage) = when (lang) {
+        AppLanguage.HINDI -> "नए डिस्पैच ऑर्डर के लिए आज के ट्रिप्स जांचें"
+        AppLanguage.HINGLISH -> "Please stand by for fleet dispatch"
+        else -> "Check Today's Trips for new dispatches"
+    }
+    fun viewSchedule(lang: AppLanguage) = when (lang) {
+        AppLanguage.HINDI -> "आज का शेड्यूल देखें"
+        AppLanguage.HINGLISH -> "VIEW TODAY'S SCHEDULE"
+        else -> "VIEW TODAY'S SCHEDULE"
+    }
+    fun todayTrips(lang: AppLanguage) = when (lang) {
+        AppLanguage.HINDI -> "आज के ट्रिप्स"
+        AppLanguage.HINGLISH -> "Today's Trips"
+        else -> "Today's Trips"
+    }
+    fun history(lang: AppLanguage) = when (lang) {
+        AppLanguage.HINDI -> "इतिहास"
+        AppLanguage.HINGLISH -> "History"
+        else -> "History"
+    }
+    fun liveTrips(lang: AppLanguage) = when (lang) {
+        AppLanguage.HINDI -> "लाइव ट्रिप्स"
+        AppLanguage.HINGLISH -> "Live Trips"
+        else -> "Live Trips"
+    }
+    fun profile(lang: AppLanguage) = when (lang) {
+        AppLanguage.HINDI -> "वाहन कागजात एवं मेनू"
+        AppLanguage.HINGLISH -> "Vehicle Papers & Menu"
+        else -> "Vehicle Papers & Menu"
+    }
+    fun startTrip(lang: AppLanguage) = when (lang) {
+        AppLanguage.HINDI -> "ट्रिप शुरू करें"
+        AppLanguage.HINGLISH -> "TRIP START KAREIN"
+        else -> "START TRIP"
+    }
+    fun continueTrip(lang: AppLanguage) = when (lang) {
+        AppLanguage.HINDI -> "ट्रिप जारी रखें"
+        AppLanguage.HINGLISH -> "TRIP CONTINUE KAREIN"
+        else -> "CONTINUE TRIP"
+    }
+    fun signOut(lang: AppLanguage) = when (lang) {
+        AppLanguage.HINDI -> "साइन आउट"
+        AppLanguage.HINGLISH -> "LOGOUT"
+        else -> "SIGN OUT"
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -2072,21 +2141,33 @@ fun TripHistoryScreen(history: List<Trip>, onBack: () -> Unit) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// SCREEN 17: DRIVER PROFILE — Enhanced
+// SCREEN 17: VEHICLE PAPERS & MENU / DRIVER PROFILE
+// Matches the Web Application "Vehicle Papers & Menu" Screen Exactly
 // ─────────────────────────────────────────────────────────────────────────
 @Composable
 fun ProfileScreen(
     user: User?,
+    selectedLanguage: AppLanguage = AppLanguage.ENGLISH,
+    onLanguageChanged: (AppLanguage) -> Unit = {},
+    isDarkTheme: Boolean = false,
+    onToggleTheme: () -> Unit = {},
+    onTriggerSync: () -> Unit = {},
     onCheckUpdate: () -> Unit = {},
     onLogout: () -> Unit,
     onBack: () -> Unit
 ) {
+    var showHelpGuidelines by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+
     Scaffold(
         topBar = {
             Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 2.dp) {
-                Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onSurface) }
-                    Text("Driver Profile", color = MaterialTheme.colorScheme.onSurface, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                    Text("Vehicle Papers & Menu", color = MaterialTheme.colorScheme.onSurface, fontSize = 17.sp, fontWeight = FontWeight.Bold)
                 }
             }
         },
@@ -2097,37 +2178,52 @@ fun ProfileScreen(
             verticalArrangement = Arrangement.spacedBy(14.dp),
             contentPadding = PaddingValues(vertical = 20.dp)
         ) {
+            // Driver Profile Header Card
             item {
-                // Avatar + name header
                 Card(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     shape = RoundedCornerShape(16.dp),
                     elevation = CardDefaults.cardElevation(2.dp)
                 ) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth().padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(20.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(80.dp)
+                                .size(56.dp)
                                 .clip(CircleShape)
                                 .background(HoseXpertsBlue),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                (user?.name?.firstOrNull()?.uppercaseChar() ?: 'D').toString(),
+                                (user?.name?.firstOrNull()?.uppercaseChar() ?: 'A').toString(),
                                 color = Color.White,
-                                fontSize = 34.sp,
+                                fontSize = 24.sp,
                                 fontWeight = FontWeight.ExtraBold
                             )
                         }
-                        Spacer(modifier = Modifier.height(14.dp))
-                        Text(user?.name ?: "Driver", color = MaterialTheme.colorScheme.onSurface, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
-                        Text(user?.email ?: "", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+                        Column {
+                            Text(
+                                user?.name ?: "ahjsj",
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.ExtraBold
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                "Commercial Driver • Verified Driver & Safety Active",
+                                color = StatusGreen,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
                     }
                 }
             }
+
+            // Quick Menu Items
             item {
                 Card(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -2135,69 +2231,263 @@ fun ProfileScreen(
                     elevation = CardDefaults.cardElevation(2.dp)
                 ) {
                     Column(modifier = Modifier.fillMaxWidth()) {
-                        ProfileInfoRow(icon = Icons.Default.Badge, label = "Employee ID", value = user?.employee_id ?: "EMP-2026")
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { /* Vehicle papers */ }
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Box(
+                                    modifier = Modifier.size(36.dp).clip(RoundedCornerShape(8.dp)).background(HoseXpertsBlue.copy(alpha = 0.12f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(Icons.Default.Description, contentDescription = null, tint = HoseXpertsBlue, modifier = Modifier.size(20.dp))
+                                }
+                                Column {
+                                    Text("Vehicle Papers & Documents", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                    Text("RC, Insurance, Fitness, Pollution, Challans", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+                                }
+                            }
+                            Icon(Icons.Default.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+
                         Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
-                        ProfileInfoRow(icon = Icons.Default.Work, label = "Role", value = user?.role ?: "Driver")
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { /* Vehicle Info */ }
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Box(
+                                    modifier = Modifier.size(36.dp).clip(RoundedCornerShape(8.dp)).background(HoseXpertsBlue.copy(alpha = 0.12f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(Icons.Default.LocalShipping, contentDescription = null, tint = HoseXpertsBlue, modifier = Modifier.size(20.dp))
+                                }
+                                Column {
+                                    Text("Vehicle Information", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                    Text("No Vehicle Assigned / Fleet Truck", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+                                }
+                            }
+                            Icon(Icons.Default.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+
                         Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
-                        ProfileInfoRow(icon = Icons.Default.VerifiedUser, label = "Status", value = "Active")
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { showHelpGuidelines = true }
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Box(
+                                    modifier = Modifier.size(36.dp).clip(RoundedCornerShape(8.dp)).background(StatusAmber.copy(alpha = 0.12f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(Icons.Default.HelpOutline, contentDescription = null, tint = StatusAmber, modifier = Modifier.size(20.dp))
+                                }
+                                Column {
+                                    Text("Help & Support", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                    Text("Dispatch contact, standard guidelines & FAQ", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+                                }
+                            }
+                            Icon(Icons.Default.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                     }
                 }
             }
+
+            // APP LANGUAGE & PREFERENCES
             item {
-                // In-App OTA Update status & manual check
+                Text(
+                    "APP LANGUAGE & PREFERENCES",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = 1.sp,
+                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                )
+
                 Card(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     shape = RoundedCornerShape(14.dp),
                     elevation = CardDefaults.cardElevation(2.dp)
                 ) {
                     Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
+                        // Language Selector
+                        Column {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Icon(Icons.Default.Language, contentDescription = null, tint = HoseXpertsBlue, modifier = Modifier.size(18.dp))
+                                Text("App Language", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            }
+                            Text("Choose your preferred language", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                AppLanguage.values().forEach { lang ->
+                                    val isSelected = selectedLanguage == lang
+                                    val bg = if (isSelected) HoseXpertsBlue else MaterialTheme.colorScheme.surfaceVariant
+                                    val fg = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface
+
+                                    Box(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(42.dp)
+                                            .clip(RoundedCornerShape(10.dp))
+                                            .background(bg)
+                                            .border(1.dp, if (isSelected) HoseXpertsBlue else MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
+                                            .clickable { onLanguageChanged(lang) },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(lang.displayName, color = fg, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                    }
+                                }
+                            }
+                        }
+
+                        Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+
+                        // App Theme
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Icon(Icons.Default.SystemUpdate, contentDescription = null, tint = HoseXpertsBlue)
-                                Text("App Version", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp)
+                            Column {
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Icon(if (isDarkTheme) Icons.Default.DarkMode else Icons.Default.LightMode, contentDescription = null, tint = HoseXpertsBlue, modifier = Modifier.size(18.dp))
+                                    Text("App Theme", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                }
+                                Text(if (isDarkTheme) "Currently in Dark mode" else "Currently in Light mode", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
                             }
-                            Text("v1.2.0 (OTA Enabled)", color = HoseXpertsBlue, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+
+                            OutlinedButton(
+                                onClick = onToggleTheme,
+                                shape = RoundedCornerShape(10.dp),
+                                border = BorderStroke(1.dp, HoseXpertsBlue)
+                            ) {
+                                Text(if (isDarkTheme) "Switch to Light" else "Switch to Dark", color = HoseXpertsBlue, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                            }
                         }
-                        Button(
-                            onClick = onCheckUpdate,
-                            modifier = Modifier.fillMaxWidth().height(42.dp),
-                            shape = RoundedCornerShape(10.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = HoseXpertsBlue.copy(alpha = 0.12f), contentColor = HoseXpertsBlue)
+
+                        Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+
+                        // Offline Storage Sync
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Check for Updates", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            Column {
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Icon(Icons.Default.Sync, contentDescription = null, tint = HoseXpertsBlue, modifier = Modifier.size(18.dp))
+                                    Text("Offline Storage Sync", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                }
+                                Text("All operational data in sync", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+                            }
+
+                            Button(
+                                onClick = onTriggerSync,
+                                shape = RoundedCornerShape(10.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = HoseXpertsBlue)
+                            ) {
+                                Text("Sync Now", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                            }
                         }
                     }
                 }
             }
+
+            // OTA Update & Logout
             item {
-                Spacer(modifier = Modifier.height(4.dp))
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    shape = RoundedCornerShape(14.dp),
+                    elevation = CardDefaults.cardElevation(2.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("App Version: v1.2.0 (OTA Enabled)", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        TextButton(onClick = onCheckUpdate) {
+                            Text("Check Updates", color = HoseXpertsBlue, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
                 Button(
                     onClick = onLogout,
-                    modifier = Modifier.fillMaxWidth().height(52.dp),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = StatusRed.copy(alpha = 0.12f), contentColor = StatusRed),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, StatusRed.copy(alpha = 0.4f))
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = StatusRed)
                 ) {
-                    Icon(Icons.Default.Logout, contentDescription = null, modifier = Modifier.size(20.dp))
+                    Icon(Icons.Default.ExitToApp, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(AppStrings.signOut(AppLanguage.ENGLISH), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Text("LOGOUT", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp)
                 }
             }
         }
+    }
+
+    // Driver Help & Guidelines Dialog (matching Web App Modal)
+    if (showHelpGuidelines) {
+        AlertDialog(
+            onDismissRequest = { showHelpGuidelines = false },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:+9118005550199"))
+                        context.startActivity(intent)
+                    },
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = HoseXpertsBlue)
+                ) {
+                    Icon(Icons.Default.Phone, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Call Dispatch Command Center", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showHelpGuidelines = false }) {
+                    Text("Close", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            },
+            title = {
+                Text("Driver Help & Guidelines", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = MaterialTheme.colorScheme.onSurface)
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("1. Check-In & Arrive: Tap 'I'm at Location' when you reach the warehouse security gate.", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface)
+                    Text("2. Proof of Delivery (POD): Snap a clear photo of the stamped delivery challan.", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface)
+                    Text("3. Delays: If stuck in traffic or loading delays exceed 15 mins, report a delay immediately.", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface)
+                    Text("4. Emergency: In case of mechanical breakdown or accident, use Emergency hotline.", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface)
+                }
+            },
+            shape = RoundedCornerShape(16.dp),
+            containerColor = MaterialTheme.colorScheme.surface
+        )
     }
 }
 
