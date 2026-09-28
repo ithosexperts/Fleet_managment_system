@@ -295,7 +295,7 @@ npm run migrate --workspace=server
  
 Built with **Kotlin + Jetpack Compose**. Designed for **direct internal company distribution** across company and driver Android devices (no Google Play Store submission required).
  
-- **Download**: [GitHub Releases → v1.1.0 APK](https://github.com/Nixxzzzzz/truck_tracker/releases/tag/v1.1.0)
+- **Download**: [GitHub Releases → v1.1.0 APK](https://github.com/ithosexperts/Fleet_managment_system/releases/tag/v1.1.0)
 - **Web QR Code / Direct Link**: Available on the Web Login screen (`/login`)
 - **Automated OTA Telemetry**: When the app launches, it checks `GET /api/app-version` and notifies drivers whenever a newer corporate APK build is published.
 - **Hardware Integration**: High-accuracy GPS fused location, CameraX proof photo capture with aspect-ratio locking, and local Room database offline queue.
