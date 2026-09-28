@@ -67,6 +67,14 @@ class PreferenceManager(context: Context) {
         prefs.edit().putBoolean(KEY_DARK_THEME, enabled).apply()
     }
 
+    fun saveLanguage(code: String) {
+        prefs.edit().putString(KEY_LANGUAGE, code).apply()
+    }
+
+    fun getLanguage(): String {
+        return prefs.getString(KEY_LANGUAGE, "EN") ?: "EN"
+    }
+
     fun clear() {
         prefs.edit().remove(KEY_AUTH_TOKEN).remove(KEY_USER).apply()
     }
@@ -76,6 +84,7 @@ class PreferenceManager(context: Context) {
         private const val KEY_USER = "user_profile"
         private const val KEY_BASE_URL = "base_url"
         private const val KEY_DARK_THEME = "dark_theme"
+        private const val KEY_LANGUAGE = "app_language"
         // Permanent production cloud backend on Render
         const val DEFAULT_BASE_URL = "https://fleet-managment-system-638o.onrender.com/"
     }

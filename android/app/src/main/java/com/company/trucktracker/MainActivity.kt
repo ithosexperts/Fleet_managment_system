@@ -93,7 +93,16 @@ fun MainAppHost(
     var selectedStop by remember { mutableStateOf<TripStop?>(null) }
     var todaysTrips by remember { mutableStateOf<List<Trip>>(emptyList()) }
     var tripHistory by remember { mutableStateOf<List<Trip>>(emptyList()) }
-    var selectedLanguage by remember { mutableStateOf(AppLanguage.ENGLISH) }
+    var selectedLanguage by remember {
+        mutableStateOf(
+            try {
+                val code = app.apiClient.preferenceManager.getLanguage()
+                AppLanguage.values().find { it.code == code } ?: AppLanguage.ENGLISH
+            } catch (_: Exception) {
+                AppLanguage.ENGLISH
+            }
+        )
+    }
 
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -196,6 +205,11 @@ fun MainAppHost(
                 errorMessage = errorMessage,
                 isDarkTheme = isDarkTheme,
                 onToggleTheme = onToggleTheme,
+                selectedLanguage = selectedLanguage,
+                onLanguageChanged = { lang ->
+                    selectedLanguage = lang
+                    app.apiClient.preferenceManager.saveLanguage(lang.code)
+                },
                 onLoginSubmit = { email, password ->
                     isLoading = true
                     errorMessage = null
@@ -262,6 +276,7 @@ fun MainAppHost(
                     }
                 },
                 onContinueTrip = { currentScreen = "TRIP_DETAIL" },
+                onReportDispute = { currentScreen = "DELAY_REPORT" },
                 onViewTrips = {
                     scope.launch {
                         val res = app.driverRepository.getTodaysTrips()

@@ -28,6 +28,9 @@ class SyncManager(
     private val _syncStatus = MutableStateFlow<String>("IDLE")
     val syncStatus: StateFlow<String> = _syncStatus.asStateFlow()
 
+    private val _syncMessage = MutableStateFlow<String>("Ready")
+    val syncMessage: StateFlow<String> = _syncMessage.asStateFlow()
+
     init {
         // Auto-drain offline queue whenever network becomes available
         scope.launch {
@@ -42,11 +45,13 @@ class SyncManager(
     suspend fun triggerSync(): Int {
         if (!networkMonitor.isConnected.value) {
             _syncStatus.value = "OFFLINE"
+            _syncMessage.value = "Offline mode. Local changes saved securely and will sync automatically when network returns."
             return 0
         }
 
         return syncMutex.withLock {
             _syncStatus.value = "SYNCING"
+            _syncMessage.value = "Synchronizing with fleet management server..."
             var syncedCount = 0
             try {
                 val pendingEvents = dao.getPendingEvents()
@@ -76,10 +81,17 @@ class SyncManager(
                         ))
                     }
                 }
-                _syncStatus.value = if (syncedCount > 0) "SYNCED" else "IDLE"
+                if (syncedCount > 0) {
+                    _syncStatus.value = "SYNCED"
+                    _syncMessage.value = "Successfully synchronized $syncedCount event(s)."
+                } else {
+                    _syncStatus.value = "IDLE"
+                    _syncMessage.value = "All changes up to date."
+                }
             } catch (e: Exception) {
                 Log.e("SyncManager", "Sync loop error: ${e.message}")
                 _syncStatus.value = "ERROR"
+                _syncMessage.value = "Sync failed: server unavailable. Your local changes are saved and will retry automatically."
             }
             syncedCount
         }

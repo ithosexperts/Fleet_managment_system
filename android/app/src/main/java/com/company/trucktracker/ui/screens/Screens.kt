@@ -1,5 +1,6 @@
 package com.company.trucktracker.ui.screens
 
+import android.content.Intent
 import android.net.Uri
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
@@ -153,6 +154,8 @@ fun LoginScreen(
     errorMessage: String?,
     isDarkTheme: Boolean = true,
     onToggleTheme: () -> Unit = {},
+    selectedLanguage: AppLanguage = AppLanguage.ENGLISH,
+    onLanguageChanged: (AppLanguage) -> Unit = {},
     onLoginSubmit: (String, String) -> Unit
 ) {
     var email by remember { mutableStateOf("") }
@@ -160,7 +163,6 @@ fun LoginScreen(
     var showPassword by remember { mutableStateOf(false) }
     var showServerConfig by remember { mutableStateOf(false) }
     var serverUrlInput by remember { mutableStateOf(currentBaseUrl) }
-    var selectedLanguage by remember { mutableStateOf(AppLanguage.ENGLISH) }
     var showLanguagePicker by remember { mutableStateOf(false) }
 
     val lang = selectedLanguage
@@ -290,7 +292,7 @@ fun LoginScreen(
                                         .fillMaxWidth()
                                         .clip(RoundedCornerShape(8.dp))
                                         .clickable {
-                                            selectedLanguage = language
+                                            onLanguageChanged(language)
                                             showLanguagePicker = false
                                         }
                                         .background(
@@ -654,6 +656,7 @@ fun DriverHomeScreen(
     selectedLanguage: AppLanguage = AppLanguage.ENGLISH,
     onStartTrip: () -> Unit,
     onContinueTrip: () -> Unit,
+    onReportDispute: () -> Unit = {},
     onViewTrips: () -> Unit,
     onViewHistory: () -> Unit,
     onViewProfile: () -> Unit,
@@ -881,6 +884,7 @@ fun DriverHomeScreen(
                         trip = activeTrip,
                         onStart = onStartTrip,
                         onContinue = onContinueTrip,
+                        onReportDispute = onReportDispute,
                         lang = lang
                     )
                 }
@@ -958,11 +962,12 @@ fun DriverHomeScreen(
 // COMPONENT: Active Trip Card (hero card on home screen)
 // ─────────────────────────────────────────────────────────────────────────
 @Composable
-fun ActiveTripCard(trip: Trip, onStart: () -> Unit, onContinue: () -> Unit, lang: AppLanguage) {
+fun ActiveTripCard(trip: Trip, onStart: () -> Unit, onContinue: () -> Unit, onReportDispute: () -> Unit = {}, lang: AppLanguage) {
     val stops = trip.stops ?: emptyList()
     val completedCount = stops.count { it.status == StopStatus.COMPLETED }
     val currentStop = stops.firstOrNull { it.status != StopStatus.COMPLETED }
     val progress = if (stops.isEmpty()) 0f else completedCount.toFloat() / stops.size
+    val context = LocalContext.current
 
     Card(
         modifier = Modifier
@@ -1100,6 +1105,39 @@ fun ActiveTripCard(trip: Trip, onStart: () -> Unit, onContinue: () -> Unit, lang
                     Icon(Icons.Default.Navigation, contentDescription = null, modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(AppStrings.continueTrip(lang), fontWeight = FontWeight.Bold, fontSize = 14.sp, letterSpacing = 0.5.sp)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Call Dispatch & Report Dispute Actions
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedButton(
+                    onClick = {
+                        val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:+9118005550199"))
+                        context.startActivity(intent)
+                    },
+                    modifier = Modifier.weight(1f).height(44.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    border = BorderStroke(1.dp, HoseXpertsBlue)
+                ) {
+                    Icon(Icons.Default.Phone, contentDescription = null, tint = HoseXpertsBlue, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("CALL DISPATCH", color = HoseXpertsBlue, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
+
+                OutlinedButton(
+                    onClick = onReportDispute,
+                    modifier = Modifier.weight(1f).height(44.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    border = BorderStroke(1.dp, StatusAmber)
+                ) {
+                    Icon(Icons.Default.ReportProblem, contentDescription = null, tint = StatusAmber, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("DISPUTE/ISSUE", color = StatusAmber, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }
