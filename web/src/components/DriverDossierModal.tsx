@@ -28,11 +28,12 @@ interface Props {
 export const DriverDossierModal: React.FC<Props> = ({ driver, onClose }) => {
   const [previewDoc, setPreviewDoc] = useState<DriverDocument | null>(null);
 
+  const totalTripsNum = Number(driver.total_trips) || 0;
   const perf = driver.performance || {
-    total_trips: driver.total_trips || 35,
-    on_time_rate: 98.4,
-    total_km: 9820,
-    safety_score: 97
+    total_trips: totalTripsNum,
+    on_time_rate: totalTripsNum > 0 ? 100 : 0,
+    total_km: 0,
+    safety_score: 100
   };
 
   const docs = driver.documents || [];

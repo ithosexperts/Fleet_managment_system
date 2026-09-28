@@ -36,13 +36,13 @@ await initDatabase();
 
 // Clean up dummy/test trips, dummy vehicles, dummy drivers, and fake telematics
 try {
-  await query(`DELETE FROM activities WHERE trip_id LIKE '%TR-2026%' OR trip_id LIKE '%TEST%' OR trip_id LIKE '%DEMO%'`);
-  await query(`DELETE FROM photos WHERE trip_id LIKE '%TR-2026%' OR trip_id LIKE '%TEST%' OR trip_id LIKE '%DEMO%'`);
-  await query(`DELETE FROM delays WHERE trip_id LIKE '%TR-2026%' OR trip_id LIKE '%TEST%' OR trip_id LIKE '%DEMO%'`);
-  await query(`DELETE FROM trip_events WHERE trip_id LIKE '%TR-2026%' OR trip_id LIKE '%TEST%' OR trip_id LIKE '%DEMO%' OR details LIKE '%km/h%'`);
-  await query(`DELETE FROM trip_telemetry WHERE trip_id LIKE '%TR-2026%' OR trip_id LIKE '%TEST%' OR trip_id LIKE '%DEMO%'`).catch(() => {});
-  await query(`DELETE FROM trip_stops WHERE trip_id LIKE '%TR-2026%' OR trip_id LIKE '%TEST%' OR trip_id LIKE '%DEMO%'`);
-  await query(`DELETE FROM trips WHERE id LIKE '%TR-2026%' OR id LIKE '%TEST%' OR id LIKE '%DEMO%'`);
+  await query(`DELETE FROM activities WHERE trip_id LIKE '%TEST%' OR trip_id LIKE '%DEMO%'`);
+  await query(`DELETE FROM photos WHERE trip_id LIKE '%TEST%' OR trip_id LIKE '%DEMO%'`);
+  await query(`DELETE FROM delays WHERE trip_id LIKE '%TEST%' OR trip_id LIKE '%DEMO%'`);
+  await query(`DELETE FROM trip_events WHERE trip_id LIKE '%TEST%' OR trip_id LIKE '%DEMO%' OR details LIKE '%km/h%'`);
+  await query(`DELETE FROM trip_telemetry WHERE trip_id LIKE '%TEST%' OR trip_id LIKE '%DEMO%'`).catch(() => {});
+  await query(`DELETE FROM trip_stops WHERE trip_id LIKE '%TEST%' OR trip_id LIKE '%DEMO%'`);
+  await query(`DELETE FROM trips WHERE id LIKE '%TEST%' OR id LIKE '%DEMO%'`);
 
   // Purge any dummy vehicles (e.g. DL 01 AB 20258, Tatta, test vehicles)
   const dummyVehicles = (await query(`

@@ -645,7 +645,7 @@ router.post('/cleanup-dummy-data', requireAuth, requireRole('MANAGER'), async (r
     await withTransaction(async (client) => {
       // 1. Delete all test / demo trips
       const demoTrips = (await client.query(`
-        SELECT id FROM trips WHERE id LIKE '%TR-2026%' OR id LIKE '%TEST%' OR id LIKE '%DEMO%'
+        SELECT id FROM trips WHERE id LIKE '%TEST%' OR id LIKE '%DEMO%'
       `)).rows as any[];
 
       for (const dt of demoTrips) {
