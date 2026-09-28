@@ -55,6 +55,7 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
           cache: 'gradle'
+          cache-dependency-path: 'android/gradle/wrapper/gradle-wrapper.properties'
 
       - name: Grant Execute Permission to Gradlew
         working-directory: android
@@ -83,14 +84,6 @@ jobs:
           path: android/gradle_build.log
           if-no-files-found: ignore
 
-      - name: Publish Diagnostic Log on Failure
-        if: failure()
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release view build-log || gh release create build-log --title "Build Diagnostic Log" --notes "Automated CI failure diagnosis"
-          gh release upload build-log android/gradle_build.log --clobber
-
       - name: Upload Android APK Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -98,19 +91,14 @@ jobs:
           path: android/app/build/outputs/apk/debug/*.apk
           retention-days: 30
 
-      - name: Update GitHub Release Assets with Fresh APK
+      - name: Create or Update GitHub Release with Fresh APK
         if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.1.0
+          name: TruckTracker v1.1.0 Release
+          body: "Production Logistics & Driver APK"
+          files: |
+            android/app/build/outputs/apk/debug/*.apk
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          cd android/app/build/outputs/apk/debug
-          APK_FILE=$(ls *.apk | head -n 1)
-          cp "$APK_FILE" TruckTracker-Driver-v1.1.0-debug.apk || true
-          cp "$APK_FILE" TruckTracker-v1.1.0.apk || true
-          if gh release view v1.1.0; then
-            echo "Release v1.1.0 exists, updating assets..."
-            gh release upload v1.1.0 TruckTracker-Driver-v1.1.0-debug.apk TruckTracker-v1.1.0.apk --clobber
-          else
-            echo "Creating release v1.1.0..."
-            gh release create v1.1.0 TruckTracker-Driver-v1.1.0-debug.apk TruckTracker-v1.1.0.apk --target main --title "TruckTracker v1.1.0 Release" --notes "Production Logistics & Driver APK"
-          fi
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
