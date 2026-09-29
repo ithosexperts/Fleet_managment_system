@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">TruckTracker</string>
+    <string name="driver_portal">Driver Field Operations</string>
+    <string name="login_title">Company Logistics Sign In</string>
+    <string name="email_hint">Driver Email / ID</string>
+    <string name="password_hint">Password</string>
+    <string name="sign_in_button">SIGN IN</string>
+    <string name="offline_notice">Saved — waiting for network</string>
+    <string name="gps_unavailable">GPS Unavailable — Please enable location services</string>
+    <string name="geofence_outside">You appear to be outside the destination area</string>
+    <string name="geofence_verified">Location Verified within Geofence</string>
+    <string name="photo_required_error">A delivery proof photo is required to complete this stop</string>
+</resources>

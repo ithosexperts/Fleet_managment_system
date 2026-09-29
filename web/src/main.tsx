@@ -1,0 +1,14 @@
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App';
+import { MapProvider } from './components/map/MapProvider';
+import 'mapbox-gl/dist/mapbox-gl.css';
+import './index.css';
+
+ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
+  <React.StrictMode>
+    <MapProvider>
+      <App />
+    </MapProvider>
+  </React.StrictMode>
+);

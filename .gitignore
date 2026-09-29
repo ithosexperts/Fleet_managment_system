@@ -1,0 +1,53 @@
+# Dependencies
+node_modules/
+dist/
+build/
+.gradle/
+android/.gradle/
+android/app/build/
+*.apk
+!server/uploads/apk/*.apk
+!web/public/*.apk
+*.aab
+local.properties
+
+# IDE & Editor files
+.idea/
+android/.idea/
+*.iml
+.vscode/
+
+# Server runtime data
+server/data/*.sqlite
+server/data/*.sqlite-shm
+server/data/*.sqlite-wal
+server/data/backups/
+server/uploads/photos/*
+!server/uploads/photos/.gitkeep
+!server/uploads/photos/*.svg
+data/*.sqlite
+data/*.sqlite-shm
+data/*.sqlite-wal
+data/backups/
+uploads/photos/*
+!uploads/photos/.gitkeep
+!uploads/photos/*.svg
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+google_sheets_credentials.json
+server/google_sheets_credentials.json
+
+# Logs & OS
+*.log
+*output.txt
+.DS_Store
+Thumbs.db
+
+# Deployments & scratch
+.vercel
+scratch/
