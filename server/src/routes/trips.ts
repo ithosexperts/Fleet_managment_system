@@ -1,4 +1,4 @@
-import { Router, Response } from 'express';
+﻿import { Router, Response } from 'express';
 import { query, withTransaction } from '../db';
 import { requireAuth, requireRole, logAudit, AuthenticatedRequest } from '../middleware/auth';
 import { v4 as uuidv4 } from 'uuid';
@@ -6,6 +6,42 @@ import { Trip, TripStop } from '../types';
 import { hosexpertsSync } from '../services/hosexpertsSync';
 
 const router = Router();
+
+const SCHEDULE_TIMEZONE = process.env.SCHEDULE_TIMEZONE || 'Asia/Kolkata';
+
+function parseScheduledDeparture(dateValue: unknown, timeValue: unknown): Date | null {
+  const date = String(dateValue ?? '').slice(0, 10);
+  const time = String(timeValue ?? '').trim();
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) {
+    return null;
+  }
+
+  // Company scheduling uses India local time.
+  // This prevents a UTC production server from interpreting 08:00 incorrectly.
+  if (SCHEDULE_TIMEZONE === 'Asia/Kolkata') {
+    const parsed = new Date(`${date}T${time}:00+05:30`);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  // Fallback for a deployment explicitly configured with another timezone.
+  const parsed = new Date(`${date}T${time}:00`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function validateFutureDeparture(dateValue: unknown, timeValue: unknown): string | null {
+  const scheduled = parseScheduledDeparture(dateValue, timeValue);
+
+  if (!scheduled) {
+    return 'Invalid planned departure date/time. Use date YYYY-MM-DD and time HH:MM.';
+  }
+
+  if (scheduled.getTime() <= Date.now()) {
+    return `Cannot schedule a trip in the past. Planned departure: ${String(dateValue ?? '').slice(0, 10)} ${String(timeValue ?? '').trim()}.`;
+  }
+
+  return null;
+}
 
 async function generateTripId(): Promise<string> {
   const year = new Date().getFullYear();
@@ -236,6 +272,11 @@ router.post('/', requireAuth, requireRole('MANAGER'), async (req: AuthenticatedR
     return res.status(400).json({ error: 'Date, Driver, Vehicle, and Planned Departure Time are required' });
   }
 
+  const scheduleError = validateFutureDeparture(date, planned_departure_time);
+  if (scheduleError) {
+    return res.status(400).json({ error: scheduleError });
+  }
+
   if (!Array.isArray(stops) || stops.length === 0) {
     return res.status(400).json({ error: 'A trip must contain at least 1 destination stop' });
   }
@@ -361,6 +402,13 @@ router.put('/:id', requireAuth, requireRole('MANAGER'), async (req: Authenticate
 
   if (currentTrip.status === 'COMPLETED' || currentTrip.status === 'CANCELLED') {
     return res.status(400).json({ error: 'Cannot edit completed or cancelled trips' });
+  }
+
+  if (planned_departure_time) {
+    const scheduleError = validateFutureDeparture(currentTrip.date, planned_departure_time);
+    if (scheduleError) {
+      return res.status(400).json({ error: scheduleError });
+    }
   }
 
   // Audit track driver change
@@ -720,3 +768,4 @@ router.delete('/:id', requireAuth, async (req: AuthenticatedRequest, res: Respon
 });
 
 export default router;
+
