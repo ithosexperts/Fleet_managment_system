@@ -394,21 +394,25 @@ fun MainAppHost(
                     stop = stop,
                     onArrive = {
                         scope.launch {
-                            // Obtain device GPS and test geofence
                             val loc = app.locationService.getCurrentLocation()
-                            if (loc is LocationResult.Success) {
-                                val (verified, dist) = app.locationService.verifyGeofence(
-                                    loc.latitude, loc.longitude,
-                                    stop.latitude, stop.longitude,
-                                    stop.geofence_radius
-                                )
-                                isGeofenceVerified = verified
-                                geofenceDistance = dist
-                                gpsAccuracy = loc.accuracyMeters
-                            } else {
+                            if (loc !is LocationResult.Success) {
                                 isGeofenceVerified = false
                                 geofenceDistance = null
                                 gpsAccuracy = null
+                                Toast.makeText(context, "Unable to verify your location. Please enable GPS and try again.", Toast.LENGTH_LONG).show()
+                                currentScreen = "ARRIVAL"
+                                return@launch
+                            }
+                            val (verified, dist) = app.locationService.verifyGeofence(
+                                loc.latitude, loc.longitude,
+                                stop.latitude, stop.longitude,
+                                stop.geofence_radius
+                            )
+                            isGeofenceVerified = verified && !loc.isAccuracyPoor
+                            geofenceDistance = dist
+                            gpsAccuracy = loc.accuracyMeters
+                            if (loc.isAccuracyPoor) {
+                                Toast.makeText(context, "GPS accuracy is too poor for reliable verification. Please retry.", Toast.LENGTH_LONG).show()
                             }
                             currentScreen = "ARRIVAL"
                         }
@@ -418,16 +422,18 @@ fun MainAppHost(
                         scope.launch {
                             val payload = mutableMapOf<String, Any?>()
                             val loc = app.locationService.getCurrentLocation()
-                            if (loc is LocationResult.Success) {
-                                payload["latitude"] = loc.latitude
-                                payload["longitude"] = loc.longitude
-                                payload["gps_accuracy"] = loc.accuracyMeters
-                            } else {
-                                payload["latitude"] = stop.latitude
-                                payload["longitude"] = stop.longitude
-                                payload["gps_accuracy"] = 10.0
+                            if (loc !is LocationResult.Success || loc.isAccuracyPoor) {
+                                Toast.makeText(context, "Unable to verify your location. Please enable GPS and try again.", Toast.LENGTH_LONG).show()
+                                return@launch
                             }
-                            app.driverRepository.executeAction("STOP_DEPARTURE", stop.id, payload)
+                            payload["latitude"] = loc.latitude
+                            payload["longitude"] = loc.longitude
+                            payload["gps_accuracy"] = loc.accuracyMeters
+                            val action = app.driverRepository.executeAction("STOP_DEPARTURE", stop.id, payload)
+                            if (action.isFailure || action.getOrNull() != true) {
+                                Toast.makeText(context, action.exceptionOrNull()?.message ?: "Departure could not be verified", Toast.LENGTH_LONG).show()
+                                return@launch
+                            }
                             val updated = app.driverRepository.getAssignedTrip()
                             activeTrip = updated.getOrNull()
                             currentScreen = "TRIP_DETAIL"
@@ -446,11 +452,6 @@ fun MainAppHost(
                     isGeofenceVerified = isGeofenceVerified,
                     distanceMeters = geofenceDistance,
                     accuracyMeters = gpsAccuracy,
-                    onSimulateArrival = {
-                        isGeofenceVerified = true
-                        geofenceDistance = 15.0
-                        gpsAccuracy = 5f
-                    },
                     onRetryGps = {
                         scope.launch {
                             val loc = app.locationService.getCurrentLocation()
@@ -460,26 +461,53 @@ fun MainAppHost(
                                     stop.latitude, stop.longitude,
                                     stop.geofence_radius
                                 )
-                                isGeofenceVerified = verified
+                                isGeofenceVerified = verified && !loc.isAccuracyPoor
                                 geofenceDistance = dist
                                 gpsAccuracy = loc.accuracyMeters
+                                if (loc.isAccuracyPoor) {
+                                    Toast.makeText(context, "GPS accuracy is too poor for reliable verification. Please retry.", Toast.LENGTH_LONG).show()
+                                }
+                            } else {
+                                isGeofenceVerified = false
+                                geofenceDistance = null
+                                gpsAccuracy = null
+                                Toast.makeText(context, "Unable to verify your location. Please enable GPS and try again.", Toast.LENGTH_LONG).show()
                             }
                         }
                     },
                     onConfirmArrival = {
                         scope.launch {
+                            if (!isGeofenceVerified) {
+                                Toast.makeText(context, "Verify that you are inside the destination geofence before confirming.", Toast.LENGTH_LONG).show()
+                                return@launch
+                            }
                             val payload = mutableMapOf<String, Any?>()
                             val loc = app.locationService.getCurrentLocation()
-                            if (loc is LocationResult.Success) {
-                                payload["latitude"] = loc.latitude
-                                payload["longitude"] = loc.longitude
-                                payload["gps_accuracy"] = loc.accuracyMeters
-                            } else {
-                                payload["latitude"] = stop.latitude
-                                payload["longitude"] = stop.longitude
-                                payload["gps_accuracy"] = 10.0
+                            if (loc !is LocationResult.Success || loc.isAccuracyPoor) {
+                                isGeofenceVerified = false
+                                Toast.makeText(context, "Unable to verify your location. Please enable GPS and try again.", Toast.LENGTH_LONG).show()
+                                return@launch
                             }
-                            app.driverRepository.executeAction("STOP_ARRIVAL", stop.id, payload)
+                            val (verified, distance) = app.locationService.verifyGeofence(
+                                loc.latitude, loc.longitude,
+                                stop.latitude, stop.longitude,
+                                stop.geofence_radius
+                            )
+                            isGeofenceVerified = verified
+                            geofenceDistance = distance
+                            gpsAccuracy = loc.accuracyMeters
+                            if (!verified) {
+                                Toast.makeText(context, "You are ${distance.toInt()}m from the destination. Move inside the geofence and retry GPS.", Toast.LENGTH_LONG).show()
+                                return@launch
+                            }
+                            payload["latitude"] = loc.latitude
+                            payload["longitude"] = loc.longitude
+                            payload["gps_accuracy"] = loc.accuracyMeters
+                            val action = app.driverRepository.executeAction("STOP_ARRIVAL", stop.id, payload)
+                            if (action.isFailure || action.getOrNull() != true) {
+                                Toast.makeText(context, action.exceptionOrNull()?.message ?: "Arrival could not be verified", Toast.LENGTH_LONG).show()
+                                return@launch
+                            }
                             val updated = app.driverRepository.getAssignedTrip()
                             activeTrip = updated.getOrNull()
                             selectedStop = activeTrip?.stops?.find { it.id == stop.id }

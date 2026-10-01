@@ -1667,7 +1667,7 @@ fun ArrivalScreen(
     isGeofenceVerified: Boolean,
     distanceMeters: Double?,
     accuracyMeters: Float?,
-    onSimulateArrival: () -> Unit = {},
+
     onConfirmArrival: () -> Unit,
     onRetryGps: () -> Unit,
     onBack: () -> Unit
@@ -1691,35 +1691,17 @@ fun ArrivalScreen(
             GeofenceStatusBanner(isGeofenceVerified, distanceMeters, accuracyMeters)
             Spacer(modifier = Modifier.weight(1f))
             if (!isGeofenceVerified) {
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(
-                        onClick = onRetryGps,
-                        modifier = Modifier.weight(1f).height(50.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, HoseXpertsBlue)
-                    ) {
-                        Icon(Icons.Default.MyLocation, contentDescription = null, tint = HoseXpertsBlue, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("RETRY GPS", color = HoseXpertsBlue, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                    }
-                    Button(
-                        onClick = onSimulateArrival,
-                        modifier = Modifier.weight(1f).height(50.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = HoseXpertsBlueLight)
-                    ) {
-                        Icon(Icons.Default.Speed, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("TEST PASS", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                    }
+                OutlinedButton(
+                    onClick = onRetryGps,
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, HoseXpertsBlue)
+                ) {
+                    Icon(Icons.Default.MyLocation, contentDescription = null, tint = HoseXpertsBlue, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("RETRY GPS", color = HoseXpertsBlue, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                 }
                 Spacer(modifier = Modifier.height(12.dp))
-                PrimaryActionButton(
-                    text = "CONFIRM ARRIVAL (OVERRIDE)",
-                    enabled = true,
-                    onClick = onConfirmArrival,
-                    icon = Icons.Default.WarningAmber
-                )
             } else {
                 PrimaryActionButton(
                     text = "CONFIRM ARRIVAL",

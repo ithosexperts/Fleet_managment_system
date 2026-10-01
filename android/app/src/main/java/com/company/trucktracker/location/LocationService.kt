@@ -64,36 +64,12 @@ class LocationService(private val context: Context) {
                     bearingDeg = if (location.hasBearing()) location.bearing else 0f
                 )
             } else {
-                // Fallback to last known location if immediate fix is unavailable
-                val lastLocation: Location? = fusedLocationClient.lastLocation.awaitResult()
-                if (lastLocation != null) {
-                    LocationResult.Success(
-                        latitude = lastLocation.latitude,
-                        longitude = lastLocation.longitude,
-                        accuracyMeters = lastLocation.accuracy,
-                        isAccuracyPoor = lastLocation.accuracy > 300f,
-                        speedKmh = if (lastLocation.hasSpeed()) lastLocation.speed * 3.6f else 0f,
-                        bearingDeg = if (lastLocation.hasBearing()) lastLocation.bearing else 0f
-                    )
-                } else {
-                    // Fallback to HoseXperts Delhi Depot coordinates when fused location is null (ensures emulator/indoor resilience)
-                    LocationResult.Success(
-                        latitude = 28.5355,
-                        longitude = 77.2680,
-                        accuracyMeters = 8f,
-                        isAccuracyPoor = false
-                    )
-                }
+                LocationResult.Unavailable("Unable to obtain a current GPS location")
             }
         } catch (e: SecurityException) {
             LocationResult.Unavailable("Location permissions not granted")
         } catch (e: Exception) {
-            LocationResult.Success(
-                latitude = 28.5355,
-                longitude = 77.2680,
-                accuracyMeters = 10f,
-                isAccuracyPoor = false
-            )
+            LocationResult.Unavailable("Unable to obtain a current GPS location")
         }
     }
 

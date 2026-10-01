@@ -59,13 +59,15 @@ export function isWithinGeofence(
     driverLon === undefined ||
     destLat === undefined ||
     destLon === undefined ||
-    isNaN(driverLat) ||
-    isNaN(driverLon)
+    !Number.isFinite(driverLat) ||
+    !Number.isFinite(driverLon) ||
+    !Number.isFinite(destLat) ||
+    !Number.isFinite(destLon)
   ) {
     return {
-      verified: true, // Graceful fallback: GPS unavailable does not block company operation
+      verified: false,
       distanceMeters: -1,
-      message: 'GPS unavailable — manual verification recorded'
+      message: 'GPS coordinates are required for geofence verification'
     };
   }
 

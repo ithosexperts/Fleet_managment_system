@@ -409,6 +409,19 @@ const handleStopArrival = async (req: AuthenticatedRequest, res: Response) => {
   const trip = await getAuthorizedTrip(tripId, req.user!);
   if (!trip) return res.status(404).json({ error: 'Trip not found' });
 
+  if (
+    typeof latitude !== 'number' ||
+    typeof longitude !== 'number' ||
+    !Number.isFinite(latitude) ||
+    !Number.isFinite(longitude) ||
+    latitude < -90 ||
+    latitude > 90 ||
+    longitude < -180 ||
+    longitude > 180
+  ) {
+    return res.status(400).json({ error: 'Valid GPS coordinates are required to record arrival' });
+  }
+
   if (trip.status !== 'IN_PROGRESS' && trip.status !== 'DELAYED') {
     return res.status(400).json({ error: 'Trip must be in progress to record stop arrival' });
   }
@@ -442,7 +455,6 @@ const handleStopArrival = async (req: AuthenticatedRequest, res: Response) => {
   const now = new Date();
   const nowIso = now.toISOString();
 
-  // Geofence check
   const geofenceResult = isWithinGeofence(
     latitude,
     longitude,
@@ -450,6 +462,15 @@ const handleStopArrival = async (req: AuthenticatedRequest, res: Response) => {
     stop.longitude,
     stop.geofence_radius_meters || 150
   );
+
+  if (!geofenceResult.verified) {
+    return res.status(400).json({
+      error: 'Outside destination geofence',
+      distance_meters: geofenceResult.distanceMeters,
+      allowed_radius_meters: stop.geofence_radius_meters || 150,
+      geofence: geofenceResult
+    });
+  }
 
   // Time diff calculation
   let arrivalStatus: 'ON_TIME' | 'EARLY' | 'LATE' | 'UNKNOWN' = 'ON_TIME';
@@ -636,6 +657,19 @@ const handleStopDeparture = async (req: AuthenticatedRequest, res: Response) => 
   const tripId = req.params.id && req.params.stopId ? String(req.params.id) : stop.trip_id;
   const driverId = req.user!.id;
   const { latitude, longitude, gps_accuracy } = req.body;
+
+  if (
+    typeof latitude !== 'number' ||
+    typeof longitude !== 'number' ||
+    !Number.isFinite(latitude) ||
+    !Number.isFinite(longitude) ||
+    latitude < -90 ||
+    latitude > 90 ||
+    longitude < -180 ||
+    longitude > 180
+  ) {
+    return res.status(400).json({ error: 'Valid GPS coordinates are required to record departure' });
+  }
 
   const trip = await getAuthorizedTrip(tripId, req.user!);
   if (!trip) return res.status(404).json({ error: 'Trip not found' });
