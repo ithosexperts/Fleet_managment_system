@@ -4,6 +4,162 @@ import { requireAuth, requireRole } from '../middleware/auth';
 
 const router = Router();
 
+const AUTOMATIC_START_DELAY_REASON =
+  'Late Trip Start (Operations)';
+
+function parseReportPlannedDeparture(
+  dateValue: unknown,
+  timeValue: unknown
+): Date | null {
+  const date = String(dateValue ?? '').slice(0, 10);
+  const time = String(timeValue ?? '').trim();
+
+  if (
+    !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
+    !/^([01]\d|2[0-3]):[0-5]\d$/.test(time)
+  ) {
+    return null;
+  }
+
+  const parsed = new Date(
+    `${date}T${time}:00+05:30`
+  );
+
+  return Number.isNaN(parsed.getTime())
+    ? null
+    : parsed;
+}
+
+function parseReportActualStart(
+  value: unknown
+): Date | null {
+  if (!value) {
+    return null;
+  }
+
+  const raw = String(value).trim();
+
+  if (!raw) {
+    return null;
+  }
+
+  // PostgreSQL timestamp without timezone.
+  // Interpret it as India local time.
+  if (
+    /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}(:\d{2}(\.\d+)?)?$/.test(raw)
+  ) {
+    const parsed = new Date(
+      `${raw.replace(' ', 'T')}+05:30`
+    );
+
+    return Number.isNaN(parsed.getTime())
+      ? null
+      : parsed;
+  }
+
+  const parsed = new Date(raw);
+
+  return Number.isNaN(parsed.getTime())
+    ? null
+    : parsed;
+}
+
+function calculateAutomaticStartDelayMinutes(
+  trip: any
+): number {
+  const planned = parseReportPlannedDeparture(
+    trip?.date,
+    trip?.planned_departure_time
+  );
+
+  const actual = parseReportActualStart(
+    trip?.actual_start_time
+  );
+
+  if (!planned || !actual) {
+    return 0;
+  }
+
+  return Math.max(
+    0,
+    Math.round(
+      (actual.getTime() - planned.getTime()) /
+        60000
+    )
+  );
+}
+
+function calculateAutomaticStartDelay(
+  trips: any[],
+  explicitDelayTripIds: Set<string>
+) {
+  let totalMinutes = 0;
+  let incidentCount = 0;
+  const tripIds: string[] = [];
+  const events: any[] = [];
+
+  for (const trip of trips || []) {
+    const tripId = String(trip?.id || '');
+
+    if (!tripId) {
+      continue;
+    }
+
+    // Do not double-count a trip that already has
+    // an explicitly recorded delay.
+    if (explicitDelayTripIds.has(tripId)) {
+      continue;
+    }
+
+    const minutes =
+      calculateAutomaticStartDelayMinutes(trip);
+
+    if (minutes <= 0) {
+      continue;
+    }
+
+    totalMinutes += minutes;
+    incidentCount += 1;
+    tripIds.push(tripId);
+
+    // Reporting-only synthetic event.
+    // The graph uses actual_start_time as the event time.
+    events.push({
+      id: `AUTO-START-${tripId}`,
+      trip_id: tripId,
+      reason: AUTOMATIC_START_DELAY_REASON,
+      start_time: trip.actual_start_time,
+      duration_minutes: minutes,
+      automatic: true
+    });
+  }
+
+  return {
+    totalMinutes,
+    incidentCount,
+    tripIds,
+    events
+  };
+}
+function addAutomaticStartReason(
+  delayReasons: any[],
+  totalMinutes: number,
+  incidentCount: number
+) {
+  if (
+    totalMinutes <= 0 ||
+    incidentCount <= 0
+  ) {
+    return;
+  }
+
+  delayReasons.push({
+    reason: AUTOMATIC_START_DELAY_REASON,
+    count: incidentCount,
+    total_minutes: totalMinutes
+  });
+}
+
 function categorizeDelayReason(reason: string): 'MANAGEMENT' | 'DRIVER' {
   const r = (reason || '').toLowerCase();
   if (
@@ -22,14 +178,26 @@ function categorizeDelayReason(reason: string): 'MANAGEMENT' | 'DRIVER' {
     r.includes('unassigned') ||
     r.includes('vehicle problem') ||
     r.includes('maintenance') ||
-    r.includes('warehouse')
+    r.includes('warehouse') ||
+    r.includes('late trip start (operations)')
   ) {
     return 'MANAGEMENT';
   }
   return 'DRIVER';
 }
 
-function processDelayAttribution(delayReasons: any[], isPeriodic: boolean, daysCount: number) {
+/*
+ * ACTUAL_EVENT_TIME_BUCKETING_STEP3
+ *
+ * Accountability totals are still calculated from delayReasons.
+ * The graph itself is now built from REAL delay event times.
+ */
+function processDelayAttribution(
+  delayReasons: any[],
+  isPeriodic: boolean,
+  daysCount: number,
+  delayEvents: any[] = []
+) {
   let mgmtMins = 0;
   let mgmtCount = 0;
   let driverMins = 0;
@@ -38,88 +206,290 @@ function processDelayAttribution(delayReasons: any[], isPeriodic: boolean, daysC
   const mgmtReasons: any[] = [];
   const driverReasons: any[] = [];
 
-  for (const dr of delayReasons) {
-    const cat = categorizeDelayReason(dr.reason);
-    const mins = Number(dr.total_minutes || 0);
-    const cnt = Number(dr.count || 0);
-    if (cat === 'MANAGEMENT') {
-      mgmtMins += mins;
-      mgmtCount += cnt;
+  for (const dr of delayReasons || []) {
+    const category = categorizeDelayReason(
+      String(dr?.reason || '')
+    );
+
+    const minutes = Number(
+      dr?.total_minutes || 0
+    );
+
+    const count = Number(
+      dr?.count || 0
+    );
+
+    if (category === 'MANAGEMENT') {
+      mgmtMins += minutes;
+      mgmtCount += count;
       mgmtReasons.push(dr);
     } else {
-      driverMins += mins;
-      driverCount += cnt;
+      driverMins += minutes;
+      driverCount += count;
       driverReasons.push(dr);
     }
   }
 
-  const totalMins = mgmtMins + driverMins;
-  const mgmtPct = totalMins > 0 ? Math.round((mgmtMins / totalMins) * 100) : 0;
-  const driverPct = totalMins > 0 ? 100 - mgmtPct : 0;
+  const totalMins =
+    mgmtMins + driverMins;
 
-  // Trend data points for dual-series line graph
-  let trend: any[] = [];
-  if (totalMins === 0) {
-    const labels = !isPeriodic
-      ? ['06:00 - 09:00', '09:00 - 12:00', '12:00 - 15:00', '15:00 - 18:00', '18:00 - 21:00']
-      : daysCount <= 7
-      ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-      : ['Week 1', 'Week 2', 'Week 3', 'Week 4'];
+  const mgmtPct =
+    totalMins > 0
+      ? Math.round(
+          (mgmtMins / totalMins) * 100
+        )
+      : 0;
 
-    trend = labels.map((lbl) => ({
-      label: lbl,
-      managementMinutes: 0,
-      driverMinutes: 0,
-      managementIncidents: 0,
-      driverIncidents: 0,
-      topManagementReason: 'No Delays',
-      topDriverReason: 'On Schedule'
-    }));
-  } else if (!isPeriodic) {
-    // Daily intervals
-    const labels = ['06:00 - 09:00', '09:00 - 12:00', '12:00 - 15:00', '15:00 - 18:00', '18:00 - 21:00'];
-    const mgmtSplits = [0.15, 0.40, 0.20, 0.15, 0.10];
-    const driverSplits = [0.10, 0.35, 0.25, 0.20, 0.10];
+  const driverPct =
+    totalMins > 0
+      ? 100 - mgmtPct
+      : 0;
 
-    trend = labels.map((lbl, idx) => ({
-      label: lbl,
-      managementMinutes: Math.round(mgmtMins * mgmtSplits[idx]),
-      driverMinutes: Math.round(driverMins * driverSplits[idx]),
-      managementIncidents: Math.round(mgmtCount * mgmtSplits[idx]),
-      driverIncidents: Math.round(driverCount * driverSplits[idx]),
-      topManagementReason: mgmtReasons[0]?.reason || 'Operational Queue',
-      topDriverReason: driverReasons[0]?.reason || 'Transit Bottleneck'
-    }));
+  let labels: string[];
+
+  if (!isPeriodic) {
+    labels = [
+      '06:00 - 09:00',
+      '09:00 - 12:00',
+      '12:00 - 15:00',
+      '15:00 - 18:00',
+      '18:00 - 21:00'
+    ];
   } else if (daysCount <= 7) {
-    // Weekly (7 days)
-    const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    const mgmtWeights = [0.16, 0.18, 0.22, 0.15, 0.19, 0.07, 0.03];
-    const driverWeights = [0.14, 0.15, 0.18, 0.16, 0.25, 0.09, 0.03];
-
-    trend = labels.map((lbl, idx) => ({
-      label: lbl,
-      managementMinutes: Math.round(mgmtMins * mgmtWeights[idx]),
-      driverMinutes: Math.round(driverMins * driverWeights[idx]),
-      managementIncidents: Math.round(mgmtCount * mgmtWeights[idx]),
-      driverIncidents: Math.round(driverCount * driverWeights[idx]),
-      topManagementReason: mgmtReasons[0]?.reason || 'Facility Turnaround',
-      topDriverReason: driverReasons[0]?.reason || 'Highway Stoppages'
-    }));
+    labels = [
+      'Mon',
+      'Tue',
+      'Wed',
+      'Thu',
+      'Fri',
+      'Sat',
+      'Sun'
+    ];
   } else {
-    // Monthly (4-5 weeks / periods)
-    const labels = ['Week 1 (1-7)', 'Week 2 (8-14)', 'Week 3 (15-21)', 'Week 4 (22-28)', 'Week 5 (29-30)'];
-    const mgmtWeights = [0.22, 0.26, 0.20, 0.24, 0.08];
-    const driverWeights = [0.20, 0.22, 0.25, 0.25, 0.08];
+    labels = [
+      'Week 1 (1-7)',
+      'Week 2 (8-14)',
+      'Week 3 (15-21)',
+      'Week 4 (22-28)',
+      'Week 5 (29-30)'
+    ];
+  }
 
-    trend = labels.map((lbl, idx) => ({
-      label: lbl,
-      managementMinutes: Math.round(mgmtMins * mgmtWeights[idx]),
-      driverMinutes: Math.round(driverMins * driverWeights[idx]),
-      managementIncidents: Math.round(mgmtCount * mgmtWeights[idx]),
-      driverIncidents: Math.round(driverCount * driverWeights[idx]),
-      topManagementReason: mgmtReasons[0]?.reason || 'Depot Processing',
-      topDriverReason: driverReasons[0]?.reason || 'Intercity Transit'
-    }));
+  const trend = labels.map((label) => ({
+    label,
+    managementMinutes: 0,
+    driverMinutes: 0,
+    managementIncidents: 0,
+    driverIncidents: 0,
+    topManagementReason:
+      mgmtMins > 0
+        ? 'Operational Queue'
+        : 'No Delays',
+    topDriverReason:
+      driverMins > 0
+        ? 'Transit Bottleneck'
+        : 'On Schedule'
+  }));
+
+  const reasonBuckets = labels.map(() => ({
+    management: new Map<string, number>(),
+    driver: new Map<string, number>()
+  }));
+
+  const weekdayIndex: Record<string, number> = {
+    Mon: 0,
+    Tue: 1,
+    Wed: 2,
+    Thu: 3,
+    Fri: 4,
+    Sat: 5,
+    Sun: 6
+  };
+
+  function getEventParts(value: unknown) {
+    if (!value) {
+      return null;
+    }
+
+    const raw = String(value).trim();
+
+    if (!raw) {
+      return null;
+    }
+
+    let parsed: Date;
+
+    // PostgreSQL timestamp without timezone.
+    // Interpret it as India local time.
+    if (
+      /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}(:\d{2}(\.\d+)?)?$/.test(raw)
+    ) {
+      parsed = new Date(
+        `${raw.replace(' ', 'T')}+05:30`
+      );
+    } else {
+      parsed = new Date(raw);
+    }
+
+    if (Number.isNaN(parsed.getTime())) {
+      return null;
+    }
+
+    const parts = new Intl.DateTimeFormat(
+      'en-IN',
+      {
+        timeZone: 'Asia/Kolkata',
+        weekday: 'short',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hourCycle: 'h23'
+      }
+    ).formatToParts(parsed);
+
+    const get = (type: string) =>
+      parts.find(
+        (part) => part.type === type
+      )?.value || '';
+
+    return {
+      weekday: get('weekday'),
+      day: Number(get('day')),
+      hour: Number(get('hour')),
+      minute: Number(get('minute'))
+    };
+  }
+
+  // =======================================================
+  // PUT EACH REAL EVENT INTO ITS REAL TIME BUCKET
+  // =======================================================
+
+  for (const event of delayEvents || []) {
+    const minutes = Number(
+      event?.duration_minutes || 0
+    );
+
+    if (minutes <= 0) {
+      continue;
+    }
+
+    const parts = getEventParts(
+      event?.start_time
+    );
+
+    if (!parts) {
+      continue;
+    }
+
+    const reason =
+      String(
+        event?.reason || 'Unspecified'
+      ).trim() || 'Unspecified';
+
+    const category =
+      categorizeDelayReason(reason);
+
+    let bucketIndex = -1;
+
+    if (!isPeriodic) {
+      // DAILY: use actual event clock time.
+      if (parts.hour < 9) {
+        bucketIndex = 0;
+      } else if (parts.hour < 12) {
+        bucketIndex = 1;
+      } else if (parts.hour < 15) {
+        bucketIndex = 2;
+      } else if (parts.hour < 18) {
+        bucketIndex = 3;
+      } else {
+        bucketIndex = 4;
+      }
+    } else if (daysCount <= 7) {
+      // WEEKLY: use actual event weekday.
+      bucketIndex =
+        weekdayIndex[parts.weekday] ?? -1;
+    } else {
+      // MONTHLY: use actual calendar week.
+      bucketIndex = Math.min(
+        4,
+        Math.floor(
+          (parts.day - 1) / 7
+        )
+      );
+    }
+
+    if (
+      bucketIndex < 0 ||
+      bucketIndex >= trend.length
+    ) {
+      continue;
+    }
+
+    if (category === 'MANAGEMENT') {
+      trend[bucketIndex].managementMinutes += minutes;
+      trend[bucketIndex].managementIncidents += 1;
+
+      const map =
+        reasonBuckets[bucketIndex]
+          .management;
+
+      map.set(
+        reason,
+        (map.get(reason) || 0) + minutes
+      );
+    } else {
+      trend[bucketIndex].driverMinutes += minutes;
+      trend[bucketIndex].driverIncidents += 1;
+
+      const map =
+        reasonBuckets[bucketIndex]
+          .driver;
+
+      map.set(
+        reason,
+        (map.get(reason) || 0) + minutes
+      );
+    }
+  }
+
+  const getTopReason = (
+    map: Map<string, number>,
+    fallback: string
+  ) => {
+    let bestReason = '';
+    let bestMinutes = -1;
+
+    for (const [
+      reason,
+      minutes
+    ] of map.entries()) {
+      if (minutes > bestMinutes) {
+        bestMinutes = minutes;
+        bestReason = reason;
+      }
+    }
+
+    return bestReason || fallback;
+  };
+
+  for (let i = 0; i < trend.length; i += 1) {
+    trend[i].topManagementReason =
+      getTopReason(
+        reasonBuckets[i].management,
+        mgmtMins > 0
+          ? 'Operational Queue'
+          : 'No Delays'
+      );
+
+    trend[i].topDriverReason =
+      getTopReason(
+        reasonBuckets[i].driver,
+        driverMins > 0
+          ? 'Transit Bottleneck'
+          : 'On Schedule'
+      );
   }
 
   return {
@@ -138,7 +508,6 @@ function processDelayAttribution(delayReasons: any[], isPeriodic: boolean, daysC
     trend
   };
 }
-
 /**
  * GET /api/reports/daily
  * Daily logistics report metrics and breakdown
@@ -161,13 +530,53 @@ router.get('/daily', requireAuth, requireRole('MANAGER'), async (req, res) => {
     const activeTrips = trips.filter((t) =>
       ['IN_PROGRESS', 'AT_DESTINATION', 'DELAYED', 'RETURNING'].includes(t.status)
     ).length;
-    const delayedTrips = trips.filter((t) => (t.total_delay_minutes || 0) > 0).length;
-    const cancelledTrips = trips.filter((t) => t.status === 'CANCELLED').length;
 
-    const totalDelayMinutes = trips.reduce(
-      (acc, t) => acc + (t.total_delay_minutes || 0),
-      0
+    const explicitDelayTripRows = (await query(`
+      SELECT DISTINCT d.trip_id
+      FROM delays d
+      JOIN trips t ON d.trip_id = t.id
+      WHERE t.date = $1
+    `, [date])).rows as Array<{ trip_id: string }>;
+
+    const explicitDelayTripIds = new Set(
+      explicitDelayTripRows.map((row) =>
+        String(row.trip_id)
+      )
     );
+
+    const delayEventsDaily = (await query(`
+      SELECT d.*
+      FROM delays d
+      JOIN trips t ON d.trip_id = t.id
+      WHERE t.date = $1
+      ORDER BY d.start_time ASC
+    `, [date])).rows as any[];
+    const automaticStartDelay =
+      calculateAutomaticStartDelay(
+        trips,
+        explicitDelayTripIds
+      );
+
+    const automaticDelayedTripIds = new Set(
+      automaticStartDelay.tripIds
+    );
+
+    const delayedTrips = trips.filter((t) =>
+      Number(t.total_delay_minutes || 0) > 0 ||
+      automaticDelayedTripIds.has(String(t.id))
+    ).length;
+
+    const cancelledTrips = trips.filter(
+      (t) => t.status === 'CANCELLED'
+    ).length;
+
+    const totalDelayMinutes =
+      trips.reduce(
+        (acc, t) =>
+          acc + Number(t.total_delay_minutes || 0),
+        0
+      ) +
+      automaticStartDelay.totalMinutes;
 
     // Stops and On-time calculation
     const stops = (await query(`
@@ -192,7 +601,22 @@ router.get('/daily', requireAuth, requireRole('MANAGER'), async (req, res) => {
       ORDER BY count DESC
     `, [date])).rows;
 
-    const delayAttribution = processDelayAttribution(delayReasons, false, 1);
+    addAutomaticStartReason(
+      delayReasons,
+      automaticStartDelay.totalMinutes,
+      automaticStartDelay.incidentCount
+    );
+
+    const delayAttribution =
+      processDelayAttribution(
+        delayReasons,
+        false,
+        1,
+        [
+          ...delayEventsDaily,
+          ...(automaticStartDelay.events || [])
+        ]
+      );
 
     // Driver summary - include u.name in GROUP BY for PostgreSQL compatibility
     const driverSummary = (await query(`
@@ -264,11 +688,64 @@ router.get('/periodic', requireAuth, requireRole('MANAGER'), async (req, res) =>
     const activeTrips = trips.filter((t) =>
       ['IN_PROGRESS', 'AT_DESTINATION', 'DELAYED', 'RETURNING'].includes(t.status)
     ).length;
-    const delayedTrips = trips.filter((t) => (t.total_delay_minutes || 0) > 0).length;
-    const cancelledTrips = trips.filter((t) => t.status === 'CANCELLED').length;
-    const totalDelayMinutes = trips.reduce((acc, t) => acc + (t.total_delay_minutes || 0), 0);
-    const avgDelayMinutes = totalTrips > 0 ? Math.round(totalDelayMinutes / totalTrips) : 0;
-    const totalDistance = trips.reduce((acc, t) => acc + (t.calculated_distance_km || 0), 0);
+
+    const explicitDelayTripRows = (await query(`
+      SELECT DISTINCT d.trip_id
+      FROM delays d
+      JOIN trips t ON d.trip_id = t.id
+      WHERE t.date >= $1
+    `, [startDate])).rows as Array<{ trip_id: string }>;
+
+    const explicitDelayTripIds = new Set(
+      explicitDelayTripRows.map((row) =>
+        String(row.trip_id)
+      )
+    );
+
+    const delayEventsPeriodic = (await query(`
+      SELECT d.*
+      FROM delays d
+      JOIN trips t ON d.trip_id = t.id
+      WHERE t.date >= $1
+      ORDER BY d.start_time ASC
+    `, [startDate])).rows as any[];
+    const automaticStartDelay =
+      calculateAutomaticStartDelay(
+        trips,
+        explicitDelayTripIds
+      );
+
+    const automaticDelayedTripIds = new Set(
+      automaticStartDelay.tripIds
+    );
+
+    const delayedTrips = trips.filter((t) =>
+      Number(t.total_delay_minutes || 0) > 0 ||
+      automaticDelayedTripIds.has(String(t.id))
+    ).length;
+
+    const cancelledTrips = trips.filter(
+      (t) => t.status === 'CANCELLED'
+    ).length;
+
+    const totalDelayMinutes =
+      trips.reduce(
+        (acc, t) =>
+          acc + Number(t.total_delay_minutes || 0),
+        0
+      ) +
+      automaticStartDelay.totalMinutes;
+
+    const avgDelayMinutes =
+      totalTrips > 0
+        ? Math.round(totalDelayMinutes / totalTrips)
+        : 0;
+
+    const totalDistance = trips.reduce(
+      (acc, t) =>
+        acc + Number(t.calculated_distance_km || 0),
+      0
+    );
 
     // Stops and On-time calculation for period
     const stops = (await query(`
@@ -314,7 +791,22 @@ router.get('/periodic', requireAuth, requireRole('MANAGER'), async (req, res) =>
       GROUP BY t.vehicle_id, v.vehicle_number, v.model
     `, [startDate])).rows;
 
-    const delayAttribution = processDelayAttribution(delayReasons, true, days);
+    addAutomaticStartReason(
+      delayReasons,
+      automaticStartDelay.totalMinutes,
+      automaticStartDelay.incidentCount
+    );
+
+    const delayAttribution =
+      processDelayAttribution(
+        delayReasons,
+        true,
+        days,
+        [
+          ...delayEventsPeriodic,
+          ...(automaticStartDelay.events || [])
+        ]
+      );
 
     return res.json({
       period,

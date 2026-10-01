@@ -1,3 +1,4 @@
+/* STEP4_ACCOUNTABILITY_GRAPH */
 import React, { useState } from 'react';
 import { Clock, ShieldAlert, User, Building2, TrendingUp, Info } from 'lucide-react';
 
@@ -85,8 +86,8 @@ export const DelayAttributionLineChart: React.FC<Props> = ({
   const mgmtArea = `${getX(0)},${getY(0)} ` + mgmtPoints + ` ${getX(trend.length - 1)},${getY(0)}`;
   const driverArea = `${getX(0)},${getY(0)} ` + driverPoints + ` ${getX(trend.length - 1)},${getY(0)}`;
 
-  const mgmtColor = '#258CFB'; // Blue (Management)
-  const driverColor = '#F59E0B'; // Amber / Orange (Driver)
+  const mgmtColor = '#258CFB'; // Management / Operations
+  const driverColor = '#6B7280'; // Driver / Transit
 
   const activePoint = hoveredIndex !== null ? trend[hoveredIndex] : null;
 
@@ -124,10 +125,10 @@ export const DelayAttributionLineChart: React.FC<Props> = ({
             </div>
             <div>
               <h3 style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
-                Delay Attribution & Root Cause Analysis
+                Actual Delay Accountability
               </h3>
               <p style={{ fontSize: '0.76rem', color: 'var(--text-muted)', margin: '2px 0 0 0' }}>
-                Comparative telemetry tracking: Delays caused by Management vs In-Transit Driver events
+                Actual delay trend: Management / Operations vs Driver / Transit
               </p>
             </div>
           </div>
@@ -318,9 +319,10 @@ export const DelayAttributionLineChart: React.FC<Props> = ({
           <polyline
             fill="none"
             stroke={driverColor}
-            strokeWidth="2.5"
+            strokeWidth="2.2"
             strokeLinecap="round"
             strokeLinejoin="round"
+            strokeDasharray="7 6"
             points={driverPoints}
           />
 
@@ -406,7 +408,7 @@ export const DelayAttributionLineChart: React.FC<Props> = ({
             fill="var(--text-muted)"
             letterSpacing="0.04em"
           >
-            {isMinutes ? 'DELAY MINUTES (MGMT)' : 'MGMT INCIDENTS'}
+            {isMinutes ? 'DELAY MINUTES' : 'MGMT INCIDENTS'}
           </text>
 
           <text
@@ -419,7 +421,7 @@ export const DelayAttributionLineChart: React.FC<Props> = ({
             fill="var(--text-muted)"
             letterSpacing="0.04em"
           >
-            {isMinutes ? 'HOURS / ATTRIBUTION' : 'RELATIVE PERCENTAGE'}
+            {isMinutes ? 'DELAY MINUTES' : 'RELATIVE PERCENTAGE'}
           </text>
         </svg>
 
@@ -512,7 +514,7 @@ export const DelayAttributionLineChart: React.FC<Props> = ({
             }}
           />
           <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-            Management Caused Delays (Warehouse, Dock Waiting, Gate Pass, Paperwork)
+            Management / Operations Delays
           </span>
         </div>
 
@@ -527,7 +529,7 @@ export const DelayAttributionLineChart: React.FC<Props> = ({
             }}
           />
           <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-            Driver Caused Delays (Traffic Congestion, Rest Stoppages, Route Deviation)
+            Driver / Transit Delays
           </span>
         </div>
       </div>
