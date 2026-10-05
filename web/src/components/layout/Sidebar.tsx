@@ -351,7 +351,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   textOverflow: 'ellipsis'
                 }}
               >
-                {currentUser.role === 'MANAGER' ? 'Operations Manager' : 'Field Driver'}
+                {currentUser.role === 'MANAGER' ? currentUser.name : 'Field Driver'}
               </div>
             </div>
 
