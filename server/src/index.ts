@@ -96,6 +96,7 @@ try {
     } else {
       const initialAdminEmail = process.env.INITIAL_ADMIN_EMAIL;
       const initialAdminPassword = process.env.INITIAL_ADMIN_PASSWORD;
+      const initialAdminName = process.env.INITIAL_ADMIN_NAME || 'Operations Manager';
       if (!initialAdminEmail || !initialAdminPassword) {
         throw new Error('INITIAL_ADMIN_EMAIL and INITIAL_ADMIN_PASSWORD are required to provision the first manager.');
       }
@@ -110,7 +111,7 @@ try {
         VALUES ($1, $2, LOWER($3), $4, 'MANAGER', $5)
       `, [
         uuidv4(),
-        'Operations Manager',
+        initialAdminName,
         initialAdminEmail,
         managerPasswordHash,
         '+91 98100 00000'

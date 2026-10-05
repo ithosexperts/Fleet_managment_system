@@ -206,6 +206,7 @@ The current deployed configuration uses PostgreSQL/Neon. Microsoft SQL Server is
 | `PORT` | `10000` | Render assigns automatically |
 | `JWT_SECRET` | 32+ random chars | Never expose |
 | `DATABASE_URL` | Render PostgreSQL connection string | Secret; never commit |
+| `INITIAL_ADMIN_NAME` | First manager name | Set to `Lalji Tiwari` in deployment settings |
 | `INITIAL_ADMIN_EMAIL` | First manager email | Secret dashboard value |
 | `INITIAL_ADMIN_PASSWORD` | Unique first manager password | Secret dashboard value |
 | `DB_POOL_MAX` | `10` | Maximum pooled connections |
